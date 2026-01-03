@@ -1,0 +1,37 @@
+# ===== DEPENDENCIES =====
+node_modules/
+.pnp/
+.pnp.js
+
+# ===== NEXT.JS BUILD OUTPUT =====
+.next/
+out/
+
+# ===== TESTING =====
+coverage/
+
+# ===== MISC =====
+*.log
+npm-debug.log*
+
+# ===== ENVIRONMENT VARIABLES (IMPORTANT: NEVER COMMIT THESE) =====
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ===== IDE =====
+.vscode/
+.idea/
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== TYPESCRIPT =====
+*.tsbuildinfo
+next-env.d.ts
+
+# ===== VERCEL =====
+.vercel

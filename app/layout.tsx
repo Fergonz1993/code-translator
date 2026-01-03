@@ -1,0 +1,38 @@
+// ===== ROOT LAYOUT =====
+// This is the main layout that wraps ALL pages in the app.
+// It sets up the HTML structure, fonts, and metadata.
+
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+
+// ===== FONT SETUP =====
+// Using Inter - a clean, modern font that's easy to read
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap", // Show fallback font immediately, swap when loaded
+});
+
+// ===== PAGE METADATA =====
+// This appears in the browser tab and in search results
+export const metadata: Metadata = {
+  title: "Code Translator | Code → English",
+  description: "Translate code into plain English, line by line. Like Google Translate for programming.",
+  keywords: ["code translator", "code to english", "programming", "learn to code"],
+};
+
+// ===== THE LAYOUT COMPONENT =====
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" className={inter.className}>
+      <body className="antialiased">
+        {/* The actual page content goes here */}
+        {children}
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,56 @@
+/* ===== TAILWIND BASE STYLES ===== */
+/* These are the foundational styles from Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== GLOBAL STYLES ===== */
+/* These apply to the entire app */
+
+/* Make the html and body take full height of the viewport */
+html,
+body {
+  height: 100%;
+}
+
+/* Remove default margins and set base styles */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: rgb(15 23 42); /* slate-900 - dark background */
+  color: rgb(226 232 240);         /* slate-200 - light text */
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+/* Make scrollbars match our dark theme */
+
+/* For WebKit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(30 41 59); /* slate-800 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105); /* slate-600 */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139); /* slate-500 */
+}
+
+/* ===== SELECTION STYLING ===== */
+/* When user selects text, use a nice blue highlight */
+::selection {
+  background-color: rgb(59 130 246 / 0.3); /* blue-500 with 30% opacity */
+}
+
+/* ===== FOCUS STYLING ===== */
+/* Remove the ugly default focus outline, we use our own */
+*:focus {
+  outline: none;
+}
