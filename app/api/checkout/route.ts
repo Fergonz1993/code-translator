@@ -12,11 +12,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerStripe } from "@/lib/stripe-server";
 import { CREDIT_PACKAGES } from "@/lib/stripe";
+import { getCreditsBalance } from "@/lib/credits-store";
+import { attachSessionCookie, ensureSessionId } from "@/lib/session";
 
 // ===== CREATE CHECKOUT SESSION =====
 
 export async function POST(request: NextRequest) {
   try {
+    // ===== STEP 0: Ensure session =====
+    const { sessionId, isNew } = ensureSessionId(request);
+    if (isNew) {
+      // Initialize credits for new sessions
+      getCreditsBalance(sessionId);
+    }
+
     // ===== STEP 1: Get Stripe instance =====
     const stripe = getServerStripe();
     if (!stripe) {
@@ -55,6 +64,7 @@ export async function POST(request: NextRequest) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
+      client_reference_id: sessionId,
       line_items: [
         {
           price_data: {
@@ -74,6 +84,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         credits: creditPackage.credits.toString(),
         packageId: creditPackage.id,
+        sessionId,
       },
       // ===== REDIRECT URLS =====
       // We removed &credits=... to prevent client-side URL spoofing.
@@ -83,10 +94,16 @@ export async function POST(request: NextRequest) {
     });
 
     // ===== STEP 5: Return session URL =====
-    return NextResponse.json({
+    const response = NextResponse.json({
       url: session.url,
       sessionId: session.id,
     });
+
+    if (isNew) {
+      attachSessionCookie(response, sessionId);
+    }
+
+    return response;
   } catch (error) {
     console.error("Checkout error:", error);
 

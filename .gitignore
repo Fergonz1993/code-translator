@@ -13,6 +13,8 @@ coverage/
 # ===== MISC =====
 *.log
 npm-debug.log*
+data/
+*.sqlite
 
 # ===== ENVIRONMENT VARIABLES (IMPORTANT: NEVER COMMIT THESE) =====
 .env
