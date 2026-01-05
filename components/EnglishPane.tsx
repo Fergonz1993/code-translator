@@ -4,9 +4,10 @@
 
 "use client"; // This runs in the browser
 
-import { Download, FileText, FileCode, FileJson } from "lucide-react";
+import { useState } from "react";
+import { Download, FileText, FileCode, FileJson, Share2, Check } from "lucide-react";
 import type { TranslatedLine } from "@/lib/types";
-import { exportToTxt, exportToMarkdown, exportToJson } from "@/lib/export-utils";
+import { exportToTxt, exportToMarkdown, exportToJson, generateShareUrl } from "@/lib/export-utils";
 
 // ===== COMPONENT PROPS =====
 interface EnglishPaneProps {
@@ -31,6 +32,15 @@ export function EnglishPane({
   hoveredLine,
   onHoverLine,
 }: EnglishPaneProps) {
+  const [isShared, setIsShared] = useState(false);
+
+  const handleShare = () => {
+    const url = generateShareUrl(code, language);
+    navigator.clipboard.writeText(url);
+    setIsShared(true);
+    setTimeout(() => setIsShared(false), 2000);
+  };
+
   return (
     <div className="h-full flex flex-col bg-white dark:bg-slate-950 transition-colors">
       {/* ===== HEADER ===== */}
@@ -63,6 +73,16 @@ export function EnglishPane({
                 title="Export as JSON"
               >
                 <FileJson className="w-4 h-4" />
+              </button>
+
+              <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
+
+              <button
+                onClick={handleShare}
+                className={`p-1.5 transition-all ${isShared ? "text-green-500" : "text-slate-400 hover:text-blue-500"}`}
+                title="Copy share link"
+              >
+                {isShared ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
               </button>
             </div>
           )}

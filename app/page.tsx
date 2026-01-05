@@ -234,6 +234,29 @@ export default function Home() {
     translateCode(debouncedCode, language);
   }, [debouncedCode, language, translateCode]);
 
+  // ===== HANDLE SHARED LINKS =====
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const sharedCode = params.get("code");
+    const sharedLang = params.get("lang");
+
+    if (sharedCode && sharedLang) {
+      try {
+        // Decode from base64
+        const decodedCode = decodeURIComponent(escape(atob(sharedCode)));
+        setCode(decodedCode);
+        setLanguage(sharedLang as Language);
+        
+        // Clean up the URL so it doesn't stay there forever
+        window.history.replaceState({}, "", window.location.pathname);
+      } catch (err) {
+        console.error("Failed to decode shared code:", err);
+      }
+    }
+  }, []);
+
   // ===== BUY MORE CREDITS HANDLER =====
   const handleBuyMore = () => {
     setIsBuyCreditsOpen(true);
