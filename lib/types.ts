@@ -32,6 +32,7 @@ export interface ModelInfo {
 
 // All available models with their info
 export const AVAILABLE_MODELS: ModelInfo[] = [
+  // ===== OPENAI MODELS =====
   {
     id: "gpt-4o-mini",
     name: "GPT-4o Mini",
@@ -41,6 +42,14 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     isDefault: true,
   },
   {
+    id: "gpt-4o",
+    name: "GPT-4o",
+    provider: "openai",
+    costPer1000: 5.00,
+    description: "Higher quality, slower",
+  },
+  // ===== GOOGLE MODELS =====
+  {
     id: "gemini-2.0-flash",
     name: "Gemini 2.0 Flash",
     provider: "google",
@@ -48,11 +57,26 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     description: "Fastest & cheapest",
   },
   {
+    id: "gemini-1.5-flash",
+    name: "Gemini 1.5 Flash",
+    provider: "google",
+    costPer1000: 0.75,
+    description: "Budget option",
+  },
+  // ===== ANTHROPIC MODELS =====
+  {
     id: "claude-haiku",
     name: "Claude Haiku",
     provider: "anthropic",
     costPer1000: 8.00,
-    description: "High quality",
+    description: "Fast responses",
+  },
+  {
+    id: "claude-sonnet",
+    name: "Claude Sonnet",
+    provider: "anthropic",
+    costPer1000: 15.00,
+    description: "Best quality",
   },
 ];
 

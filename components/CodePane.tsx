@@ -4,7 +4,9 @@
 
 "use client"; // This runs in the browser
 
+import { useEffect, useRef } from "react";
 import Editor from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
 import type { Language } from "./LanguageSelector";
 
 // ===== COMPONENT PROPS =====
@@ -13,6 +15,7 @@ interface CodePaneProps {
   language: Language;               // Which programming language for syntax highlighting
   onChange: (code: string) => void; // Called when user types something
   isLoading: boolean;               // Show a subtle indicator when translating
+  hoveredLine: number | null;       // Which line is hovered in the English pane (for sync highlighting)
 }
 
 // ===== LANGUAGE MAPPING =====
@@ -26,9 +29,58 @@ const MONACO_LANGUAGE_MAP: Record<Language, string> = {
 };
 
 // ===== THE COMPONENT =====
-export function CodePane({ code, language, onChange, isLoading }: CodePaneProps) {
+export function CodePane({ code, language, onChange, isLoading, hoveredLine }: CodePaneProps) {
+  // Store reference to the Monaco editor instance
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const decorationsRef = useRef<string[]>([]);
+
+  // ===== HANDLE EDITOR MOUNT =====
+  // Called once when Monaco finishes loading
+  const handleEditorDidMount = (editorInstance: editor.IStandaloneCodeEditor) => {
+    editorRef.current = editorInstance;
+  };
+
+  // ===== UPDATE LINE HIGHLIGHT =====
+  // When hoveredLine changes, highlight that line in the editor
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    // Clear previous decorations
+    decorationsRef.current = editorRef.current.deltaDecorations(
+      decorationsRef.current,
+      hoveredLine !== null
+        ? [
+            {
+              range: {
+                startLineNumber: hoveredLine + 1, // Monaco uses 1-based line numbers
+                startColumn: 1,
+                endLineNumber: hoveredLine + 1,
+                endColumn: 1,
+              },
+              options: {
+                isWholeLine: true,
+                className: "highlighted-line", // CSS class for styling
+                glyphMarginClassName: "highlighted-line-glyph",
+              },
+            },
+          ]
+        : []
+    );
+  }, [hoveredLine]);
+
   return (
     <div className="h-full flex flex-col">
+      {/* ===== CUSTOM CSS FOR LINE HIGHLIGHTING ===== */}
+      <style jsx global>{`
+        .highlighted-line {
+          background-color: rgba(59, 130, 246, 0.15) !important;
+        }
+        .highlighted-line-glyph {
+          background-color: rgba(59, 130, 246, 0.3);
+          width: 5px !important;
+        }
+      `}</style>
+
       {/* ===== HEADER ===== */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
         <h2 className="text-sm font-medium text-slate-300">
@@ -51,6 +103,7 @@ export function CodePane({ code, language, onChange, isLoading }: CodePaneProps)
           language={MONACO_LANGUAGE_MAP[language]}
           value={code}
           onChange={(value) => onChange(value || "")}
+          onMount={handleEditorDidMount}
           theme="vs-dark" // Dark theme to match our app
           options={{
             // ===== EDITOR OPTIONS =====

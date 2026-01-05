@@ -181,14 +181,23 @@ export default function Home() {
         </div>
 
         {/* Right side: Model selector + Credits/Settings */}
-        <div className="flex items-center gap-4">
-          {/* Model selector */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          {/* Model selector - full version on desktop */}
           <div className="hidden md:block">
             <ModelSelector
               value={settings.selectedModel}
               onChange={setSelectedModel}
             />
           </div>
+
+          {/* Model indicator - compact version on mobile, opens settings */}
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="md:hidden text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded hover:bg-slate-600 transition-colors"
+            title="Change model"
+          >
+            {settings.selectedModel.replace("-", " ").replace("gpt 4o", "GPT-4o").replace("gemini", "Gemini").replace("claude", "Claude")}
+          </button>
 
           {/* Credits display (only in credits mode) */}
           {settings.paymentMode === "credits" && (
@@ -240,6 +249,7 @@ export default function Home() {
             language={language}
             onChange={setCode}
             isLoading={isLoading}
+            hoveredLine={hoveredLine}
           />
         </div>
 
