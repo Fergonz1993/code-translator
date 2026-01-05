@@ -1,56 +1,63 @@
 /* ===== TAILWIND BASE STYLES ===== */
-/* These are the foundational styles from Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ===== GLOBAL STYLES ===== */
-/* These apply to the entire app */
+/* ===== THEME VARIABLES ===== */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+  }
 
-/* Make the html and body take full height of the viewport */
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217.2 32.6% 17.5%;
+  }
+}
+
+/* ===== GLOBAL STYLES ===== */
 html,
 body {
   height: 100%;
 }
 
-/* Remove default margins and set base styles */
 body {
   margin: 0;
   padding: 0;
-  background-color: rgb(15 23 42); /* slate-900 - dark background */
-  color: rgb(226 232 240);         /* slate-200 - light text */
+  @apply bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-300;
 }
 
 /* ===== SCROLLBAR STYLING ===== */
-/* Make scrollbars match our dark theme */
-
-/* For WebKit browsers (Chrome, Safari, Edge) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(30 41 59); /* slate-800 */
+  @apply bg-slate-100 dark:bg-slate-900;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(71 85 105); /* slate-600 */
-  border-radius: 4px;
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(100 116 139); /* slate-500 */
+  @apply bg-slate-400 dark:bg-slate-600;
 }
 
 /* ===== SELECTION STYLING ===== */
-/* When user selects text, use a nice blue highlight */
 ::selection {
-  background-color: rgb(59 130 246 / 0.3); /* blue-500 with 30% opacity */
+  background-color: rgb(59 130 246 / 0.3);
 }
 
 /* ===== FOCUS STYLING ===== */
-/* Remove the ugly default focus outline, we use our own */
 *:focus {
   outline: none;
 }

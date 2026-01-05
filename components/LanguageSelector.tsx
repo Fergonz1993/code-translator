@@ -5,11 +5,20 @@
 "use client"; // This tells Next.js this component runs in the browser
 
 // ===== SUPPORTED LANGUAGES =====
-// We support these 4 languages for now. Easy to add more later.
+// We support these languages for now. Monaco editor supports many of these out of the box.
 export const LANGUAGES = [
   { value: "typescript", label: "TypeScript" },
   { value: "javascript", label: "JavaScript" },
   { value: "python", label: "Python" },
+  { value: "go", label: "Go" },
+  { value: "rust", label: "Rust" },
+  { value: "java", label: "Java" },
+  { value: "csharp", label: "C#" },
+  { value: "cpp", label: "C++" },
+  { value: "ruby", label: "Ruby" },
+  { value: "php", label: "PHP" },
+  { value: "swift", label: "Swift" },
+  { value: "kotlin", label: "Kotlin" },
   { value: "sql", label: "SQL" },
 ] as const;
 
@@ -41,9 +50,9 @@ export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
         value={value}
         onChange={(e) => onChange(e.target.value as Language)}
         className="
-          bg-slate-800
-          text-white
-          border border-slate-600
+          bg-white dark:bg-slate-800
+          text-slate-900 dark:text-white
+          border border-slate-300 dark:border-slate-600
           rounded-md
           px-3 py-1.5
           text-sm
@@ -51,7 +60,7 @@ export function LanguageSelector({ value, onChange }: LanguageSelectorProps) {
           focus:ring-2
           focus:ring-blue-500
           cursor-pointer
-          hover:border-slate-500
+          hover:border-slate-400 dark:hover:border-slate-500
           transition-colors
         "
       >

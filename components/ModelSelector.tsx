@@ -26,9 +26,9 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
         value={value}
         onChange={(e) => onChange(e.target.value as AIModel)}
         className="
-          bg-slate-800
-          text-white
-          border border-slate-600
+          bg-white dark:bg-slate-800
+          text-slate-900 dark:text-white
+          border border-slate-300 dark:border-slate-600
           rounded-md
           px-3 py-1.5
           text-sm
@@ -36,7 +36,7 @@ export function ModelSelector({ value, onChange }: ModelSelectorProps) {
           focus:ring-2
           focus:ring-blue-500
           cursor-pointer
-          hover:border-slate-500
+          hover:border-slate-400 dark:hover:border-slate-500
           transition-colors
         "
       >

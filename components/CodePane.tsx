@@ -4,8 +4,9 @@
 
 "use client"; // This runs in the browser
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import { useTheme } from "next-themes";
 import type { editor } from "monaco-editor";
 import type { Language } from "./LanguageSelector";
 
@@ -25,6 +26,15 @@ const MONACO_LANGUAGE_MAP: Record<Language, string> = {
   typescript: "typescript",
   javascript: "javascript",
   python: "python",
+  go: "go",
+  rust: "rust",
+  java: "java",
+  csharp: "csharp",
+  cpp: "cpp",
+  ruby: "ruby",
+  php: "php",
+  swift: "swift",
+  kotlin: "kotlin",
   sql: "sql",
 };
 
@@ -33,6 +43,13 @@ export function CodePane({ code, language, onChange, isLoading, hoveredLine }: C
   // Store reference to the Monaco editor instance
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const decorationsRef = useRef<string[]>([]);
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // ===== HANDLE EDITOR MOUNT =====
   // Called once when Monaco finishes loading
@@ -98,29 +115,29 @@ export function CodePane({ code, language, onChange, isLoading, hoveredLine }: C
       `}</style>
 
       {/* ===== HEADER ===== */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
-        <h2 className="text-sm font-medium text-slate-300">
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
+        <h2 className="text-sm font-medium text-slate-600 dark:text-slate-300">
           Code
         </h2>
 
         {/* Loading indicator - subtle pulse when translating */}
         {isLoading && (
-          <div className="flex items-center gap-2 text-xs text-blue-400">
-            <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
+          <div className="flex items-center gap-2 text-xs text-blue-500 dark:text-blue-400">
+            <div className="w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse" />
             Translating...
           </div>
         )}
       </div>
 
       {/* ===== EDITOR ===== */}
-      <div className="flex-1">
+      <div className="flex-1 bg-white dark:bg-slate-950">
         <Editor
           height="100%"
           language={MONACO_LANGUAGE_MAP[language]}
           value={code}
           onChange={(value) => onChange(value || "")}
           onMount={handleEditorDidMount}
-          theme="vs-dark" // Dark theme to match our app
+          theme={mounted ? (resolvedTheme === "dark" ? "vs-dark" : "light") : "vs-dark"}
           options={{
             // ===== EDITOR OPTIONS =====
             minimap: { enabled: false },      // Hide the mini-map (code preview on the right)
@@ -138,8 +155,8 @@ export function CodePane({ code, language, onChange, isLoading, hoveredLine }: C
           }}
           loading={
             // Show while Monaco is loading (first time only)
-            <div className="flex items-center justify-center h-full bg-slate-900">
-              <div className="text-slate-500 text-sm">
+            <div className="flex items-center justify-center h-full bg-slate-50 dark:bg-slate-950">
+              <div className="text-slate-400 dark:text-slate-500 text-sm">
                 Loading editor...
               </div>
             </div>

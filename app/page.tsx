@@ -8,6 +8,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Clock } from "lucide-react";
 
 // ===== TIMEOUT REFS FOR PURCHASE MESSAGE CLEANUP =====
 // Store timeout IDs so we can clean them up when component unmounts
@@ -20,11 +21,14 @@ import { ModelSelector } from "@/components/ModelSelector";
 import { CreditsDisplay } from "@/components/CreditsDisplay";
 import { SettingsModal } from "@/components/SettingsModal";
 import { BuyCreditsModal } from "@/components/BuyCreditsModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { HistoryModal } from "@/components/HistoryModal";
 
 // ===== HOOKS =====
 import { useDebounce } from "@/hooks/useDebounce";
 import { useCredits } from "@/hooks/useCredits";
 import { useSettings } from "@/hooks/useSettings";
+import { useHistory } from "@/hooks/useHistory";
 
 // ===== TYPES =====
 import type { TranslatedLine } from "@/lib/types";
@@ -62,6 +66,14 @@ export default function Home() {
     isLoaded: creditsLoaded,
   } = useCredits();
 
+  const {
+    history,
+    addToHistory,
+    deleteItem: deleteHistoryItem,
+    clearHistory,
+    isLoaded: historyLoaded,
+  } = useHistory();
+
   // ===== LOCAL STATE =====
   const [code, setCode] = useState(SAMPLE_CODE);
   const [language, setLanguage] = useState<Language>("typescript");
@@ -71,6 +83,7 @@ export default function Home() {
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [purchaseMessage, setPurchaseMessage] = useState<{
     text: string;
     type: "success" | "loading" | "error";
@@ -164,6 +177,14 @@ export default function Home() {
         // Success - update translations
         if (data.translations && Array.isArray(data.translations)) {
           setTranslations(data.translations);
+
+          // Add to history
+          addToHistory({
+            code: codeToTranslate,
+            language: lang,
+            model: settings.selectedModel,
+            translations: data.translations,
+          });
 
           // Deduct a credit if using credits mode
           if (settings.paymentMode === "credits") {
@@ -306,7 +327,7 @@ export default function Home() {
 
   // ===== RENDER =====
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col bg-white dark:bg-slate-950 transition-colors duration-300">
       {/* ===== PURCHASE STATUS MESSAGE ===== */}
       {purchaseMessage && (
         <div className={`
@@ -342,11 +363,11 @@ export default function Home() {
       )}
 
       {/* ===== TOP BAR ===== */}
-      <header className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
+      <header className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 transition-colors">
         {/* Left side: Logo + Language selector */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold text-white">Code Translator</h1>
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Code Translator</h1>
             <span className="text-slate-500 text-sm hidden sm:inline">
               Code → English
             </span>
@@ -357,6 +378,16 @@ export default function Home() {
 
         {/* Right side: Model selector + Credits/Settings */}
         <div className="flex items-center gap-2 sm:gap-4">
+          <ThemeToggle />
+          
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all"
+            title="Translation history"
+          >
+            <Clock className="w-5 h-5" />
+          </button>
+
           {/* Model selector - full version on desktop */}
           <div className="hidden md:block">
             <ModelSelector
@@ -416,9 +447,9 @@ export default function Home() {
       </header>
 
       {/* ===== MAIN CONTENT: TWO PANES ===== */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden bg-white dark:bg-slate-950">
         {/* LEFT PANE: Code Editor */}
-        <div className="flex-1 min-h-[300px] md:min-h-0 border-b md:border-b-0 md:border-r border-slate-700">
+        <div className="flex-1 min-h-[300px] md:min-h-0 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800">
           <CodePane
             code={code}
             language={language}
@@ -431,6 +462,9 @@ export default function Home() {
         {/* RIGHT PANE: English Translations */}
         <div className="flex-1 min-h-[300px] md:min-h-0">
           <EnglishPane
+            code={code}
+            language={language}
+            model={settings.selectedModel}
             translations={translations}
             isLoading={isLoading}
             error={error}
@@ -441,7 +475,7 @@ export default function Home() {
       </main>
 
       {/* ===== FOOTER ===== */}
-      <footer className="px-4 py-2 bg-slate-800 border-t border-slate-700 text-center">
+      <footer className="px-4 py-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 text-center transition-colors">
         <p className="text-xs text-slate-500">
           Powered by AI • Translations appear automatically as you type
         </p>
@@ -465,6 +499,20 @@ export default function Home() {
         isOpen={isBuyCreditsOpen}
         onClose={() => setIsBuyCreditsOpen(false)}
         onCreditsAdded={addCredits}
+      />
+
+      {/* ===== HISTORY MODAL ===== */}
+      <HistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        items={history}
+        onSelect={(item) => {
+          setCode(item.code);
+          setLanguage(item.language as Language);
+          setTranslations(item.translations);
+        }}
+        onDelete={deleteHistoryItem}
+        onClear={clearHistory}
       />
     </div>
   );

@@ -122,6 +122,24 @@ export interface CreditsState {
 // New users get 20 free credits
 export const INITIAL_CREDITS = 20;
 
+// ===== HISTORY =====
+// Past translations saved for reference
+
+export interface HistoryItem {
+  id: string;               // Unique ID (UUID or timestamp)
+  code: string;             // Original code
+  language: string;         // Language name
+  model: AIModel;           // Model used
+  translations: TranslatedLine[]; // The results
+  timestamp: number;        // When it was created
+}
+
+export interface HistoryState {
+  items: HistoryItem[];
+}
+
+export const MAX_HISTORY_ITEMS = 50;
+
 // ===== TRANSLATION REQUEST/RESPONSE =====
 // What we send to and receive from the API
 

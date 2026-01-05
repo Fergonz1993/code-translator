@@ -4,10 +4,15 @@
 
 "use client"; // This runs in the browser
 
+import { Download, FileText, FileCode, FileJson } from "lucide-react";
 import type { TranslatedLine } from "@/lib/types";
+import { exportToTxt, exportToMarkdown, exportToJson } from "@/lib/export-utils";
 
 // ===== COMPONENT PROPS =====
 interface EnglishPaneProps {
+  code: string;                    // The original code (for exporting)
+  language: string;                // The language name (for exporting)
+  model: string;                   // The model name (for exporting)
   translations: TranslatedLine[];  // Array of { line, english } objects
   isLoading: boolean;              // Show loading state
   error: string | null;            // Any error message to display
@@ -17,6 +22,9 @@ interface EnglishPaneProps {
 
 // ===== THE COMPONENT =====
 export function EnglishPane({
+  code,
+  language,
+  model,
   translations,
   isLoading,
   error,
@@ -24,16 +32,45 @@ export function EnglishPane({
   onHoverLine,
 }: EnglishPaneProps) {
   return (
-    <div className="h-full flex flex-col bg-slate-900">
+    <div className="h-full flex flex-col bg-white dark:bg-slate-950 transition-colors">
       {/* ===== HEADER ===== */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-800 border-b border-slate-700">
-        <h2 className="text-sm font-medium text-slate-300">
-          Plain English
-        </h2>
+      <div className="flex items-center justify-between px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-4">
+          <h2 className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            Plain English
+          </h2>
+
+          {/* Export Buttons - only show if there are translations */}
+          {!isLoading && translations.length > 0 && (
+            <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 ml-2 pl-4">
+              <button
+                onClick={() => exportToTxt(code, translations)}
+                className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                title="Export as Text"
+              >
+                <FileText className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => exportToMarkdown(code, language, translations)}
+                className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                title="Export as Markdown"
+              >
+                <FileCode className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => exportToJson(code, language, model, translations)}
+                className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
+                title="Export as JSON"
+              >
+                <FileJson className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Show count of translated lines */}
         {translations.length > 0 && (
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {translations.length} lines
           </span>
         )}
@@ -44,7 +81,7 @@ export function EnglishPane({
         {/* ===== ERROR STATE ===== */}
         {error && (
           <div className="p-4">
-            <div className="bg-red-900/50 border border-red-700 rounded-lg p-4 text-red-200 text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-600 dark:text-red-200 text-sm">
               <strong>Error:</strong> {error}
             </div>
           </div>
@@ -56,7 +93,7 @@ export function EnglishPane({
             {/* Skeleton loading animation - shows 5 placeholder lines */}
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
-                <div className="h-4 bg-slate-800 rounded w-3/4" />
+                <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-3/4" />
               </div>
             ))}
           </div>
@@ -64,10 +101,10 @@ export function EnglishPane({
 
         {/* ===== EMPTY STATE ===== */}
         {!isLoading && !error && translations.length === 0 && (
-          <div className="flex items-center justify-center h-full text-slate-500 text-sm p-8 text-center">
+          <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm p-8 text-center">
             <div>
               <p className="mb-2">Type or paste code on the left</p>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-400 dark:text-slate-600">
                 Translations will appear here automatically
               </p>
             </div>
@@ -84,23 +121,23 @@ export function EnglishPane({
                   flex items-start gap-3 py-2 px-2 rounded-md
                   transition-colors duration-150
                   ${hoveredLine === index
-                    ? "bg-blue-900/30"
-                    : "hover:bg-slate-800/50"
+                    ? "bg-blue-50 dark:bg-blue-900/30"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                   }
                 `}
                 onMouseEnter={() => onHoverLine(index)}
                 onMouseLeave={() => onHoverLine(null)}
               >
                 {/* ===== LINE NUMBER ===== */}
-                <span className="text-slate-600 text-xs font-mono w-6 text-right flex-shrink-0 pt-0.5">
+                <span className="text-slate-400 dark:text-slate-600 text-xs font-mono w-6 text-right flex-shrink-0 pt-0.5">
                   {index + 1}
                 </span>
 
                 {/* ===== TRANSLATION ===== */}
-                <p className="text-slate-300 text-sm leading-relaxed flex-1">
+                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed flex-1">
                   {item.english === "---" ? (
                     // Blank line separator
-                    <span className="text-slate-600 italic">
+                    <span className="text-slate-400 dark:text-slate-600 italic">
                       (blank line)
                     </span>
                   ) : (
