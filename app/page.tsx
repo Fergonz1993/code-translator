@@ -16,6 +16,7 @@ import { LanguageSelector, type Language } from "@/components/LanguageSelector";
 import { ModelSelector } from "@/components/ModelSelector";
 import { CreditsDisplay } from "@/components/CreditsDisplay";
 import { SettingsModal } from "@/components/SettingsModal";
+import { BuyCreditsModal } from "@/components/BuyCreditsModal";
 
 // ===== HOOKS =====
 import { useDebounce } from "@/hooks/useDebounce";
@@ -54,6 +55,7 @@ export default function Home() {
     credits,
     hasCredits,
     useCredit,
+    addCredits,
     isLoaded: creditsLoaded,
   } = useCredits();
 
@@ -65,6 +67,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
 
   // ===== ABORT CONTROLLER FOR CANCELLING REQUESTS =====
   // Used to cancel previous requests when a new one is made
@@ -200,11 +203,27 @@ export default function Home() {
 
   // ===== BUY MORE CREDITS HANDLER =====
   const handleBuyMore = () => {
-    // For MVP: just open settings and show a message
-    // Later: integrate Stripe
-    setIsSettingsOpen(true);
-    alert("Credit purchase coming soon! For now, add your own API key to get unlimited translations.");
+    setIsBuyCreditsOpen(true);
   };
+
+  // ===== HANDLE SUCCESSFUL PURCHASE =====
+  // Check URL params for successful purchase (redirect from Stripe)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const purchaseStatus = params.get("purchase");
+    const creditsParam = params.get("credits");
+
+    if (purchaseStatus === "success" && creditsParam) {
+      const creditsToAdd = parseInt(creditsParam, 10);
+      if (!isNaN(creditsToAdd) && creditsToAdd > 0) {
+        addCredits(creditsToAdd);
+        // Clean up URL
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, [addCredits]);
 
   // ===== RENDER =====
   return (
@@ -326,6 +345,13 @@ export default function Home() {
         onModelChange={setSelectedModel}
         onApiKeyChange={setApiKey}
         currentProvider={currentProvider}
+      />
+
+      {/* ===== BUY CREDITS MODAL ===== */}
+      <BuyCreditsModal
+        isOpen={isBuyCreditsOpen}
+        onClose={() => setIsBuyCreditsOpen(false)}
+        onCreditsAdded={addCredits}
       />
     </div>
   );
