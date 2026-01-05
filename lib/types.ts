@@ -148,9 +148,12 @@ export interface TranslateRequest {
   language: string;
   model: AIModel;
   apiKey?: string;    // Only for BYOK mode
+  lineNumbers?: number[]; // Optional subset of lines to translate (1-based)
+  requestId?: string; // Idempotency for credit usage
 }
 
 export interface TranslatedLine {
+  lineNumber: number; // 1-based line number
   line: string;
   english: string;
 }
@@ -159,6 +162,7 @@ export interface TranslateResponse {
   translations: TranslatedLine[];
   model: AIModel;
   tokensUsed?: number;
+  credits?: CreditsState;
 }
 
 export interface TranslateError {

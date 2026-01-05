@@ -1,20 +1,11 @@
 // ===== USE CREDITS HOOK =====
-// Manages the user's credit balance using localStorage.
-// Credits are used when the user doesn't have their own API key.
-//
-// HOW IT WORKS:
-// - New users get 20 free credits
-// - Each translation uses 1 credit
-// - Credits persist across browser sessions (localStorage)
-// - When credits run out, user needs to buy more
+// Manages the user's credit balance via the server-side ledger.
+// The balance is fetched from /api/credits/balance and cached in memory.
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CreditsState, INITIAL_CREDITS } from "@/lib/types";
-
-// Key used in localStorage
-const STORAGE_KEY = "code-translator-credits";
 
 export function useCredits() {
   // ===== STATE =====
@@ -23,78 +14,49 @@ export function useCredits() {
     used: 0,
     remaining: INITIAL_CREDITS,
   });
-
-  // Track if we've loaded from localStorage yet
   const [isLoaded, setIsLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // ===== LOAD FROM LOCALSTORAGE ON MOUNT =====
-  useEffect(() => {
-    // Only runs in browser (not during server-side rendering)
-    if (typeof window === "undefined") return;
+  // ===== LOAD BALANCE FROM SERVER =====
+  const refreshCredits = useCallback(async () => {
+    try {
+      const response = await fetch("/api/credits/balance");
+      const data = await response.json();
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-
-    if (stored) {
-      // User has existing credits
-      try {
-        const parsed = JSON.parse(stored) as CreditsState;
-        setCredits(parsed);
-      } catch {
-        // If parsing fails, start fresh
-        console.error("Failed to parse stored credits, using defaults");
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to load credits");
       }
-    }
-    // If no stored credits, keep the default (20 free credits)
 
+      if (data.credits) {
+        setCredits(data.credits as CreditsState);
+      }
+
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load credits");
+    } finally {
+      setIsLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshCredits();
+  }, [refreshCredits]);
+
+  // ===== UPDATE CREDITS FROM API RESPONSES =====
+  const updateCredits = useCallback((next: CreditsState) => {
+    setCredits(next);
     setIsLoaded(true);
   }, []);
 
-  // ===== SAVE TO LOCALSTORAGE WHEN CREDITS CHANGE =====
-  useEffect(() => {
-    // Don't save until we've loaded (to avoid overwriting with defaults)
-    if (!isLoaded) return;
-    if (typeof window === "undefined") return;
-
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(credits));
-    } catch (err) {
-      // Handle localStorage quota exceeded (typically 5-10MB limit)
-      if (err instanceof Error && err.name === "QuotaExceededError") {
-        console.warn("localStorage quota exceeded, credits may not persist");
-      }
-      // Don't re-throw - app should continue working even if storage fails
-    }
-  }, [credits, isLoaded]);
-
-  // ===== USE A CREDIT =====
-  // Call this after a successful translation
-  const useCredit = useCallback(() => {
-    setCredits((prev) => ({
-      ...prev,
-      used: prev.used + 1,
-      remaining: prev.remaining - 1,
-    }));
-  }, []);
-
-  // ===== ADD CREDITS =====
-  // Call this when user purchases more credits
-  const addCredits = useCallback((amount: number) => {
-    setCredits((prev) => ({
-      total: prev.total + amount,
-      used: prev.used,
-      remaining: prev.remaining + amount,
-    }));
-  }, []);
-
-  // ===== CHECK IF USER HAS CREDITS =====
   const hasCredits = credits.remaining > 0;
 
-  // ===== RETURN EVERYTHING =====
   return {
     credits,
     hasCredits,
-    useCredit,
-    addCredits,
     isLoaded,
+    error,
+    refreshCredits,
+    updateCredits,
   };
 }

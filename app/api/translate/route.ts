@@ -10,6 +10,7 @@
 // 1. Credits mode: Uses our API keys (user pays with credits)
 // 2. BYOK mode: Uses user's API key (passed in request)
 
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -20,40 +21,40 @@ import {
   AIModel,
   AIProvider,
 } from "@/lib/types";
+import { attachSessionCookie, ensureSessionId } from "@/lib/session";
+import { consumeCredits, getCreditsBalance, grantCredits } from "@/lib/credits-store";
 
-// ===== HELPER: Parse and validate AI response =====
-// Ensures the JSON response has the expected structure
-function parseTranslationResponse(content: string): TranslatedLine[] {
-  if (!content || content.trim() === "") {
-    throw new Error("Empty response from AI provider");
-  }
+// ===== CONSTANTS =====
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error("AI returned invalid JSON. Please try again.");
-  }
+const DEFAULT_RESPONSE_PLACEHOLDER = "(translation unavailable)";
 
-  // Validate it's an array
-  if (!Array.isArray(parsed)) {
-    throw new Error("AI response is not an array. Please try again.");
-  }
+const OPENAI_JSON_SCHEMA = {
+  name: "translations",
+  schema: {
+    type: "array",
+    items: {
+      type: "object",
+      properties: {
+        lineNumber: { type: "integer" },
+        english: { type: "string" },
+      },
+      required: ["lineNumber", "english"],
+      additionalProperties: false,
+    },
+  },
+} as const;
 
-  // Validate each item has the required fields
-  const translations: TranslatedLine[] = [];
-  for (const item of parsed) {
-    if (typeof item !== "object" || item === null) {
-      throw new Error("Invalid translation item format");
-    }
-    if (typeof item.line !== "string" || typeof item.english !== "string") {
-      throw new Error("Translation missing 'line' or 'english' field");
-    }
-    translations.push({ line: item.line, english: item.english });
-  }
-
-  return translations;
-}
+const GENERIC_JSON_SCHEMA = {
+  type: "array",
+  items: {
+    type: "object",
+    properties: {
+      lineNumber: { type: "integer" },
+      english: { type: "string" },
+    },
+    required: ["lineNumber", "english"],
+  },
+} as const;
 
 // ===== HELPER: Get provider from model name =====
 function getProviderForModel(model: AIModel): AIProvider {
@@ -75,100 +76,287 @@ function getModelId(model: AIModel): string {
   return modelMap[model] || model;
 }
 
-// ===== THE PROMPT =====
-// Same prompt for all providers - tells the AI what we want
-function getPrompt(code: string, language: string): string {
-  return `You are a code-to-English translator. Translate this ${language} code into plain English, LINE BY LINE.
+// ===== HELPER: Line helpers =====
+function splitCodeLines(code: string): string[] {
+  return code.split(/\r?\n/);
+}
+
+function normalizeLineNumbers(lineNumbers: number[] | undefined, totalLines: number): number[] {
+  const fallback = Array.from({ length: totalLines }, (_, i) => i + 1);
+  const raw = lineNumbers && lineNumbers.length > 0 ? lineNumbers : fallback;
+  const normalized = raw
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .map((value) => Math.trunc(value))
+    .filter((value) => value >= 1 && value <= totalLines);
+
+  return Array.from(new Set(normalized)).sort((a, b) => a - b);
+}
+
+// ===== HELPER: Build prompt =====
+function buildPrompt(options: {
+  code: string;
+  language: string;
+  lineNumbers: number[];
+  lines: string[];
+  strict?: boolean;
+}): string {
+  const linesBlock = options.lineNumbers
+    .map((lineNumber) => `${lineNumber}: ${options.lines[lineNumber - 1] ?? ""}`)
+    .join("\n");
+
+  return `You are a code-to-English translator. Translate the requested ${options.language} lines into plain English, line by line.
 
 RULES:
-- Each line of code gets ONE explanation
+- Return ONLY a valid JSON array, no markdown, no code fences
+- Each object must include "lineNumber" and "english"
+- Use the provided line numbers exactly
 - Keep explanations SHORT (10-15 words max)
 - Use simple, everyday language (like explaining to someone who doesn't code)
 - For blank lines, return "---"
 - For comments, say "Note: [what the comment says]"
 - For closing braces/brackets alone, say "End of [what block it closes]"
-- NO technical jargon - use everyday words
+- NO technical jargon
 - Focus on WHAT it does, not HOW it works technically
+${options.strict ? "- If you are unsure, still return a best-effort English explanation" : ""}
 
-Return ONLY a valid JSON array, no markdown, no code blocks:
-[
-  { "line": "original code line here", "english": "plain English translation here" },
-  { "line": "next line", "english": "translation" }
-]
+TRANSLATE ONLY THESE LINES:
+${linesBlock}
 
-CODE TO TRANSLATE:
-${code}`;
+FULL CODE (for context):
+${options.code}
+`;
 }
 
-// ===== OPENAI TRANSLATION =====
+// ===== HELPER: Parse and validate AI response =====
+function extractJsonArray(content: string): string {
+  const cleaned = content
+    .replace(/^```(?:json)?\s*/gm, "")
+    .replace(/```\s*$/gm, "")
+    .trim();
+
+  const start = cleaned.indexOf("[");
+  const end = cleaned.lastIndexOf("]");
+
+  if (start !== -1 && end !== -1 && end > start) {
+    return cleaned.slice(start, end + 1);
+  }
+
+  return cleaned;
+}
+
+function parseTranslationResponse(
+  content: string,
+  expectedLineNumbers: number[],
+  lines: string[]
+): Map<number, string> {
+  if (!content || content.trim() === "") {
+    throw new Error("Empty response from AI provider");
+  }
+
+  const cleaned = extractJsonArray(content);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    throw new Error("AI returned invalid JSON. Please try again.");
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error("AI response is not an array. Please try again.");
+  }
+
+  const remaining = new Set(expectedLineNumbers);
+  const lineTextMap = new Map<string, number[]>();
+
+  for (const lineNumber of expectedLineNumbers) {
+    const lineText = lines[lineNumber - 1] ?? "";
+    const list = lineTextMap.get(lineText);
+    if (list) {
+      list.push(lineNumber);
+    } else {
+      lineTextMap.set(lineText, [lineNumber]);
+    }
+  }
+
+  const translations = new Map<number, string>();
+
+  for (const item of parsed) {
+    if (typeof item !== "object" || item === null) continue;
+
+    const record = item as {
+      lineNumber?: number | string;
+      line?: string;
+      english?: string;
+    };
+
+    if (typeof record.english !== "string") continue;
+
+    let lineNumber: number | null = null;
+
+    if (typeof record.lineNumber === "number" && Number.isFinite(record.lineNumber)) {
+      lineNumber = Math.trunc(record.lineNumber);
+    } else if (typeof record.lineNumber === "string") {
+      const parsedNumber = Number(record.lineNumber);
+      if (Number.isFinite(parsedNumber)) {
+        lineNumber = Math.trunc(parsedNumber);
+      }
+    }
+
+    if (lineNumber && remaining.has(lineNumber)) {
+      translations.set(lineNumber, record.english);
+      remaining.delete(lineNumber);
+      continue;
+    }
+
+    if (!lineNumber && typeof record.line === "string") {
+      const candidates = lineTextMap.get(record.line);
+      if (candidates && candidates.length > 0) {
+        const fallbackLineNumber = candidates.shift();
+        if (fallbackLineNumber && remaining.has(fallbackLineNumber)) {
+          translations.set(fallbackLineNumber, record.english);
+          remaining.delete(fallbackLineNumber);
+        }
+      }
+    }
+  }
+
+  return translations;
+}
+
+// ===== PROVIDER CALLS =====
 async function translateWithOpenAI(
-  code: string,
-  language: string,
+  prompt: string,
   model: AIModel,
   apiKey: string
-): Promise<TranslatedLine[]> {
+): Promise<string> {
   const openai = new OpenAI({ apiKey });
 
   const response = await openai.chat.completions.create({
     model: getModelId(model),
-    messages: [
-      {
-        role: "user",
-        content: getPrompt(code, language),
-      },
-    ],
-    temperature: 0.3, // Lower = more consistent/deterministic
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+    response_format: { type: "json_schema", json_schema: OPENAI_JSON_SCHEMA },
   });
 
-  const content = response.choices[0]?.message?.content || "";
-  return parseTranslationResponse(content);
+  return response.choices[0]?.message?.content || "";
 }
 
-// ===== GOOGLE GEMINI TRANSLATION =====
 async function translateWithGemini(
-  code: string,
-  language: string,
+  prompt: string,
   model: AIModel,
   apiKey: string
-): Promise<TranslatedLine[]> {
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const geminiModel = genAI.getGenerativeModel({ model: getModelId(model) });
+  const geminiModel = genAI.getGenerativeModel({
+    model: getModelId(model),
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json",
+      responseSchema: GENERIC_JSON_SCHEMA,
+    },
+  });
 
-  const result = await geminiModel.generateContent(getPrompt(code, language));
-  const content = result.response.text();
-
-  // Gemini sometimes wraps JSON in markdown code blocks, clean it
-  const cleanedContent = content
-    .replace(/^```(?:json)?\s*/gm, "")  // Matches ``` or ```json at line start
-    .replace(/```\s*$/gm, "")           // Matches ``` at line end
-    .trim();
-
-  return parseTranslationResponse(cleanedContent);
+  const result = await geminiModel.generateContent(prompt);
+  return result.response.text();
 }
 
-// ===== ANTHROPIC CLAUDE TRANSLATION =====
 async function translateWithClaude(
-  code: string,
-  language: string,
+  prompt: string,
   model: AIModel,
   apiKey: string
-): Promise<TranslatedLine[]> {
+): Promise<string> {
   const anthropic = new Anthropic({ apiKey });
 
   const message = await anthropic.messages.create({
     model: getModelId(model),
     max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: getPrompt(code, language),
-      },
-    ],
+    messages: [{ role: "user", content: prompt }],
   });
 
-  const content =
-    message.content[0].type === "text" ? message.content[0].text : "";
-  return parseTranslationResponse(content);
+  return message.content[0].type === "text" ? message.content[0].text : "";
+}
+
+async function requestTranslations(options: {
+  code: string;
+  language: string;
+  lineNumbers: number[];
+  lines: string[];
+  model: AIModel;
+  apiKey: string;
+}): Promise<Map<number, string>> {
+  const prompt = buildPrompt({
+    code: options.code,
+    language: options.language,
+    lineNumbers: options.lineNumbers,
+    lines: options.lines,
+  });
+
+  const provider = getProviderForModel(options.model);
+  let content = "";
+
+  switch (provider) {
+    case "openai":
+      content = await translateWithOpenAI(prompt, options.model, options.apiKey);
+      break;
+    case "google":
+      content = await translateWithGemini(prompt, options.model, options.apiKey);
+      break;
+    case "anthropic":
+      content = await translateWithClaude(prompt, options.model, options.apiKey);
+      break;
+    default:
+      throw new Error(`Unknown provider: ${provider}`);
+  }
+
+  return parseTranslationResponse(content, options.lineNumbers, options.lines);
+}
+
+async function translateLines(options: {
+  code: string;
+  language: string;
+  lineNumbers: number[];
+  lines: string[];
+  model: AIModel;
+  apiKey: string;
+}): Promise<Map<number, string>> {
+  const initial = await requestTranslations(options);
+  const missing = options.lineNumbers.filter((lineNumber) => !initial.has(lineNumber));
+
+  if (missing.length === 0) return initial;
+
+  const retryPrompt = buildPrompt({
+    code: options.code,
+    language: options.language,
+    lineNumbers: missing,
+    lines: options.lines,
+    strict: true,
+  });
+
+  const provider = getProviderForModel(options.model);
+  let retryContent = "";
+
+  switch (provider) {
+    case "openai":
+      retryContent = await translateWithOpenAI(retryPrompt, options.model, options.apiKey);
+      break;
+    case "google":
+      retryContent = await translateWithGemini(retryPrompt, options.model, options.apiKey);
+      break;
+    case "anthropic":
+      retryContent = await translateWithClaude(retryPrompt, options.model, options.apiKey);
+      break;
+    default:
+      throw new Error(`Unknown provider: ${provider}`);
+  }
+
+  const retryTranslations = parseTranslationResponse(retryContent, missing, options.lines);
+  for (const [lineNumber, english] of retryTranslations.entries()) {
+    initial.set(lineNumber, english);
+  }
+
+  return initial;
 }
 
 // ===== MAIN HANDLER =====
@@ -185,15 +373,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ===== STEP 3: Determine which API key to use =====
+    // ===== STEP 3: Prepare session and lines =====
+    const { sessionId, isNew } = ensureSessionId(request);
+    const lines = splitCodeLines(body.code);
+    const requestedLineNumbers = normalizeLineNumbers(body.lineNumbers, lines.length);
+
+    if (requestedLineNumbers.length === 0) {
+      return NextResponse.json(
+        { error: "No valid line numbers provided" },
+        { status: 400 }
+      );
+    }
+
+    const blankLineNumbers = requestedLineNumbers.filter(
+      (lineNumber) => (lines[lineNumber - 1] ?? "").trim() === ""
+    );
+    const blankLineSet = new Set(blankLineNumbers);
+    const translateLineNumbers = requestedLineNumbers.filter(
+      (lineNumber) => !blankLineSet.has(lineNumber)
+    );
+
+    // ===== STEP 4: Determine which API key to use =====
     const provider = getProviderForModel(body.model);
     let apiKey: string | undefined;
 
     if (body.apiKey) {
-      // BYOK mode: user provided their own key
       apiKey = body.apiKey;
     } else {
-      // Credits mode: use our API key from environment
       const envKeyMap: Record<AIProvider, string | undefined> = {
         openai: process.env.OPENAI_API_KEY,
         google: process.env.GOOGLE_API_KEY,
@@ -202,7 +408,6 @@ export async function POST(request: NextRequest) {
       apiKey = envKeyMap[provider];
     }
 
-    // ===== STEP 4: Check we have an API key =====
     if (!apiKey) {
       const message = body.apiKey
         ? "Invalid API key provided"
@@ -211,48 +416,101 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    // ===== STEP 5: Call the appropriate provider =====
-    let translations: TranslatedLine[];
+    // ===== STEP 5: Handle blank-only requests =====
+    const translations: TranslatedLine[] = requestedLineNumbers.map((lineNumber) => ({
+      lineNumber,
+      line: lines[lineNumber - 1] ?? "",
+      english: blankLineSet.has(lineNumber) ? "---" : "",
+    }));
 
-    switch (provider) {
-      case "openai":
-        translations = await translateWithOpenAI(
-          body.code,
-          body.language,
-          body.model,
-          apiKey
-        );
-        break;
-      case "google":
-        translations = await translateWithGemini(
-          body.code,
-          body.language,
-          body.model,
-          apiKey
-        );
-        break;
-      case "anthropic":
-        translations = await translateWithClaude(
-          body.code,
-          body.language,
-          body.model,
-          apiKey
-        );
-        break;
-      default:
-        return NextResponse.json(
-          { error: `Unknown provider: ${provider}` },
-          { status: 400 }
-        );
+    if (translateLineNumbers.length === 0) {
+      const response = NextResponse.json({
+        translations,
+        model: body.model,
+        credits: body.apiKey ? undefined : getCreditsBalance(sessionId),
+      });
+
+      if (isNew) {
+        attachSessionCookie(response, sessionId);
+      }
+
+      return response;
     }
 
-    // ===== STEP 6: Return the translations =====
-    return NextResponse.json({
-      translations,
-      model: body.model,
-    });
+    // ===== STEP 6: Credits check (only for credits mode) =====
+    const isCreditsMode = !body.apiKey;
+    const requestId = body.requestId || crypto.randomUUID();
+    let creditsBalance = isCreditsMode ? getCreditsBalance(sessionId) : undefined;
+    let creditsCharged = false;
+
+    if (isCreditsMode) {
+      if ((creditsBalance?.remaining ?? 0) <= 0) {
+        return NextResponse.json(
+          { error: "You are out of credits. Buy more or add your own API key in Settings." },
+          { status: 402 }
+        );
+      }
+
+      const consumption = consumeCredits({
+        sessionId,
+        amount: 1,
+        source: "translation",
+        idempotencyKey: `translate:${requestId}`,
+      });
+
+      if (!consumption.ok) {
+        return NextResponse.json(
+          { error: "You are out of credits. Buy more or add your own API key in Settings." },
+          { status: 402 }
+        );
+      }
+
+      creditsCharged = consumption.charged;
+      creditsBalance = consumption.balance;
+    }
+
+    try {
+      // ===== STEP 7: Translate missing lines =====
+      const translatedMap = await translateLines({
+        code: body.code,
+        language: body.language,
+        lineNumbers: translateLineNumbers,
+        lines,
+        model: body.model,
+        apiKey,
+      });
+
+      for (const entry of translations) {
+        if (entry.english) continue;
+        const english = translatedMap.get(entry.lineNumber);
+        entry.english = english ?? DEFAULT_RESPONSE_PLACEHOLDER;
+      }
+
+      const response = NextResponse.json({
+        translations,
+        model: body.model,
+        credits: creditsBalance,
+      });
+
+      if (isNew) {
+        attachSessionCookie(response, sessionId);
+      }
+
+      return response;
+    } catch (error) {
+      // Refund on failure if we charged credits
+      if (creditsCharged) {
+        grantCredits({
+          sessionId,
+          amount: 1,
+          source: "translation_refund",
+          idempotencyKey: `refund:${requestId}`,
+        });
+      }
+
+      throw error;
+    }
   } catch (error) {
-    // ===== ERROR HANDLING =====
     console.error("Translation error:", error);
 
     let errorMessage = "Translation failed";
@@ -261,7 +519,6 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error) {
       errorMessage = error.message;
 
-      // Handle common API errors with user-friendly messages
       if (error.message.includes("401") || error.message.includes("API key")) {
         errorMessage = "Invalid API key. Please check your API key in Settings.";
         statusCode = 401;

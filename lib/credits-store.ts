@@ -144,7 +144,7 @@ export function consumeCredits(options: {
   amount: number;
   source: string;
   idempotencyKey?: string;
-}): { ok: boolean; balance: CreditsState } {
+}): { ok: boolean; balance: CreditsState; charged: boolean } {
   const db = getDb();
   const now = Date.now();
 
@@ -156,7 +156,11 @@ export function consumeCredits(options: {
         .prepare("SELECT id FROM credit_transactions WHERE idempotency_key = ?")
         .get(options.idempotencyKey) as { id: string } | undefined;
       if (existing) {
-        return { ok: true, balance: getCreditsBalance(options.sessionId) };
+        return {
+          ok: true,
+          balance: getCreditsBalance(options.sessionId),
+          charged: false,
+        };
       }
     }
 
@@ -165,12 +169,12 @@ export function consumeCredits(options: {
       .get(options.sessionId) as { total: number; used: number } | undefined;
 
     if (!row) {
-      return { ok: false, balance: buildBalance(INITIAL_CREDITS, 0) };
+      return { ok: false, balance: buildBalance(INITIAL_CREDITS, 0), charged: false };
     }
 
     const remaining = row.total - row.used;
     if (remaining < options.amount) {
-      return { ok: false, balance: buildBalance(row.total, row.used) };
+      return { ok: false, balance: buildBalance(row.total, row.used), charged: false };
     }
 
     db.prepare(
@@ -188,7 +192,11 @@ export function consumeCredits(options: {
       "UPDATE credits_balance SET used = used + ?, updated_at = ? WHERE session_id = ?"
     ).run(options.amount, now, options.sessionId);
 
-    return { ok: true, balance: getCreditsBalance(options.sessionId) };
+    return {
+      ok: true,
+      balance: getCreditsBalance(options.sessionId),
+      charged: true,
+    };
   });
 
   return run();
