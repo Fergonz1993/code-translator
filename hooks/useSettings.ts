@@ -54,7 +54,15 @@ export function useSettings() {
     if (!isLoaded) return;
     if (typeof window === "undefined") return;
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch (err) {
+      // Handle localStorage quota exceeded (typically 5-10MB limit)
+      if (err instanceof Error && err.name === "QuotaExceededError") {
+        console.warn("localStorage quota exceeded, settings may not persist");
+      }
+      // Don't re-throw - app should continue working even if storage fails
+    }
   }, [settings, isLoaded]);
 
   // ===== UPDATE PAYMENT MODE =====

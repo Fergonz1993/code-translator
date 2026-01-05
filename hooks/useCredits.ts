@@ -55,7 +55,15 @@ export function useCredits() {
     if (!isLoaded) return;
     if (typeof window === "undefined") return;
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(credits));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(credits));
+    } catch (err) {
+      // Handle localStorage quota exceeded (typically 5-10MB limit)
+      if (err instanceof Error && err.name === "QuotaExceededError") {
+        console.warn("localStorage quota exceeded, credits may not persist");
+      }
+      // Don't re-throw - app should continue working even if storage fails
+    }
   }, [credits, isLoaded]);
 
   // ===== USE A CREDIT =====

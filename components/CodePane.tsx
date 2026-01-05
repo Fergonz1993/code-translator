@@ -43,28 +43,44 @@ export function CodePane({ code, language, onChange, isLoading, hoveredLine }: C
   // ===== UPDATE LINE HIGHLIGHT =====
   // When hoveredLine changes, highlight that line in the editor
   useEffect(() => {
-    if (!editorRef.current) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    // Clear previous decorations
-    decorationsRef.current = editorRef.current.deltaDecorations(
+    // If no line is hovered or invalid line number, clear decorations
+    if (hoveredLine === null || hoveredLine < 0) {
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
+      return;
+    }
+
+    // Check if the line exists in the editor (validate range)
+    const model = editor.getModel();
+    const totalLines = model?.getLineCount() ?? 0;
+    const lineNumber = hoveredLine + 1; // Monaco uses 1-based line numbers
+
+    if (lineNumber > totalLines) {
+      // Line doesn't exist in editor, clear decorations
+      decorationsRef.current = editor.deltaDecorations(decorationsRef.current, []);
+      return;
+    }
+
+    // Apply decoration to the valid line
+    decorationsRef.current = editor.deltaDecorations(
       decorationsRef.current,
-      hoveredLine !== null
-        ? [
-            {
-              range: {
-                startLineNumber: hoveredLine + 1, // Monaco uses 1-based line numbers
-                startColumn: 1,
-                endLineNumber: hoveredLine + 1,
-                endColumn: 1,
-              },
-              options: {
-                isWholeLine: true,
-                className: "highlighted-line", // CSS class for styling
-                glyphMarginClassName: "highlighted-line-glyph",
-              },
-            },
-          ]
-        : []
+      [
+        {
+          range: {
+            startLineNumber: lineNumber,
+            startColumn: 1,
+            endLineNumber: lineNumber,
+            endColumn: 1,
+          },
+          options: {
+            isWholeLine: true,
+            className: "highlighted-line", // CSS class for styling
+            glyphMarginClassName: "highlighted-line-glyph",
+          },
+        },
+      ]
     );
   }, [hoveredLine]);
 

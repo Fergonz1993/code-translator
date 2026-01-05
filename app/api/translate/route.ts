@@ -21,6 +21,40 @@ import {
   AIProvider,
 } from "@/lib/types";
 
+// ===== HELPER: Parse and validate AI response =====
+// Ensures the JSON response has the expected structure
+function parseTranslationResponse(content: string): TranslatedLine[] {
+  if (!content || content.trim() === "") {
+    throw new Error("Empty response from AI provider");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error("AI returned invalid JSON. Please try again.");
+  }
+
+  // Validate it's an array
+  if (!Array.isArray(parsed)) {
+    throw new Error("AI response is not an array. Please try again.");
+  }
+
+  // Validate each item has the required fields
+  const translations: TranslatedLine[] = [];
+  for (const item of parsed) {
+    if (typeof item !== "object" || item === null) {
+      throw new Error("Invalid translation item format");
+    }
+    if (typeof item.line !== "string" || typeof item.english !== "string") {
+      throw new Error("Translation missing 'line' or 'english' field");
+    }
+    translations.push({ line: item.line, english: item.english });
+  }
+
+  return translations;
+}
+
 // ===== HELPER: Get provider from model name =====
 function getProviderForModel(model: AIModel): AIProvider {
   if (model.startsWith("gpt")) return "openai";
@@ -87,7 +121,7 @@ async function translateWithOpenAI(
   });
 
   const content = response.choices[0]?.message?.content || "";
-  return JSON.parse(content) as TranslatedLine[];
+  return parseTranslationResponse(content);
 }
 
 // ===== GOOGLE GEMINI TRANSLATION =====
@@ -105,11 +139,11 @@ async function translateWithGemini(
 
   // Gemini sometimes wraps JSON in markdown code blocks, clean it
   const cleanedContent = content
-    .replace(/```json\n?/g, "")
-    .replace(/```\n?/g, "")
+    .replace(/^```(?:json)?\s*/gm, "")  // Matches ``` or ```json at line start
+    .replace(/```\s*$/gm, "")           // Matches ``` at line end
     .trim();
 
-  return JSON.parse(cleanedContent) as TranslatedLine[];
+  return parseTranslationResponse(cleanedContent);
 }
 
 // ===== ANTHROPIC CLAUDE TRANSLATION =====
@@ -134,7 +168,7 @@ async function translateWithClaude(
 
   const content =
     message.content[0].type === "text" ? message.content[0].text : "";
-  return JSON.parse(content) as TranslatedLine[];
+  return parseTranslationResponse(content);
 }
 
 // ===== MAIN HANDLER =====

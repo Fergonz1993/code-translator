@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ===== COMPONENTS =====
 import { CodePane } from "@/components/CodePane";
@@ -24,6 +24,10 @@ import { useSettings } from "@/hooks/useSettings";
 
 // ===== TYPES =====
 import type { TranslatedLine } from "@/lib/types";
+import { AVAILABLE_MODELS as MODELS_LIST } from "@/lib/types";
+
+// ===== CONSTANTS =====
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds timeout for API requests
 
 // ===== SAMPLE CODE =====
 // Shows when the app first loads so users understand what it does
@@ -62,6 +66,10 @@ export default function Home() {
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // ===== ABORT CONTROLLER FOR CANCELLING REQUESTS =====
+  // Used to cancel previous requests when a new one is made
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   // ===== DEBOUNCED CODE =====
   // Wait 800ms after user stops typing before translating
   const debouncedCode = useDebounce(code, 800);
@@ -83,6 +91,20 @@ export default function Home() {
         setError("You're out of credits. Buy more or add your own API key in Settings.");
         return;
       }
+
+      // Cancel any previous pending request to avoid race conditions
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller for this request
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      // Set timeout to abort request after REQUEST_TIMEOUT_MS
+      const timeoutId = setTimeout(() => {
+        abortController.abort();
+      }, REQUEST_TIMEOUT_MS);
 
       setIsLoading(true);
       setError(null);
@@ -106,12 +128,16 @@ export default function Home() {
           requestBody.apiKey = apiKey;
         }
 
-        // Call the API
+        // Call the API with abort signal
         const response = await fetch("/api/translate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(requestBody),
+          signal: abortController.signal,
         });
+
+        // Clear timeout since request completed
+        clearTimeout(timeoutId);
 
         const data = await response.json();
 
@@ -132,10 +158,27 @@ export default function Home() {
           throw new Error("Invalid response format");
         }
       } catch (err) {
+        // Clear timeout on error
+        clearTimeout(timeoutId);
+
+        // Ignore aborted requests (user typed again or timeout)
+        if (err instanceof Error && err.name === "AbortError") {
+          // Check if this was a timeout vs a new request cancellation
+          if (!abortControllerRef.current || abortControllerRef.current === abortController) {
+            setError("Request timed out. Please try again.");
+            setIsLoading(false);
+          }
+          // If it was cancelled by a new request, don't update state
+          return;
+        }
+
         setError(err instanceof Error ? err.message : "Something went wrong");
         setTranslations([]);
       } finally {
-        setIsLoading(false);
+        // Only set loading to false if this is still the active request
+        if (abortControllerRef.current === abortController) {
+          setIsLoading(false);
+        }
       }
     },
     [
@@ -196,7 +239,7 @@ export default function Home() {
             className="md:hidden text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded hover:bg-slate-600 transition-colors"
             title="Change model"
           >
-            {settings.selectedModel.replace("-", " ").replace("gpt 4o", "GPT-4o").replace("gemini", "Gemini").replace("claude", "Claude")}
+            {MODELS_LIST.find(m => m.id === settings.selectedModel)?.name ?? settings.selectedModel}
           </button>
 
           {/* Credits display (only in credits mode) */}
