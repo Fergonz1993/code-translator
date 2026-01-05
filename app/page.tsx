@@ -9,6 +9,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+// ===== TIMEOUT REFS FOR PURCHASE MESSAGE CLEANUP =====
+// Store timeout IDs so we can clean them up when component unmounts
+
 // ===== COMPONENTS =====
 import { CodePane } from "@/components/CodePane";
 import { EnglishPane } from "@/components/EnglishPane";
@@ -68,10 +71,19 @@ export default function Home() {
   const [hoveredLine, setHoveredLine] = useState<number | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isBuyCreditsOpen, setIsBuyCreditsOpen] = useState(false);
+  const [purchaseMessage, setPurchaseMessage] = useState<{
+    text: string;
+    type: "success" | "loading" | "error";
+  } | null>(null);
 
   // ===== ABORT CONTROLLER FOR CANCELLING REQUESTS =====
   // Used to cancel previous requests when a new one is made
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // ===== TIMEOUT REFS FOR PURCHASE MESSAGE CLEANUP =====
+  // Store timeout IDs so we can clean them up when component unmounts
+  const urlCleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const messageHideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // ===== DEBOUNCED CODE =====
   // Wait 800ms after user stops typing before translating
@@ -207,27 +219,128 @@ export default function Home() {
   };
 
   // ===== HANDLE SUCCESSFUL PURCHASE =====
-  // Check URL params for successful purchase (redirect from Stripe)
+  // Securely verify and claim credits after Stripe redirect
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
     const purchaseStatus = params.get("purchase");
-    const creditsParam = params.get("credits");
+    const sessionId = params.get("session_id");
 
-    if (purchaseStatus === "success" && creditsParam) {
-      const creditsToAdd = parseInt(creditsParam, 10);
-      if (!isNaN(creditsToAdd) && creditsToAdd > 0) {
-        addCredits(creditsToAdd);
-        // Clean up URL
+    if (purchaseStatus === "success" && sessionId) {
+      const verifyAndClaim = async () => {
+        setPurchaseMessage({ text: "Confirming your purchase...", type: "loading" });
+        
+        try {
+          // Step 1: Get a signed token from the server
+          const getResponse = await fetch(`/api/credits/claim?session_id=${sessionId}`);
+          const getData = await getResponse.json();
+
+          if (!getResponse.ok || getData.status !== "success") {
+            throw new Error(getData.error || "Failed to verify purchase");
+          }
+
+          // Step 2: Use the token to claim credits
+          const claimResponse = await fetch("/api/credits/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: getData.token }),
+          });
+
+          const claimData = await claimResponse.json();
+
+          if (!claimResponse.ok || !claimData.success) {
+            throw new Error(claimData.error || "Failed to claim credits");
+          }
+
+          // Step 3: Successfully claimed! Update local state
+          addCredits(claimData.credits);
+          setPurchaseMessage({ 
+            text: `Success! ${claimData.credits} credits have been added to your balance.`, 
+            type: "success" 
+          });
+
+          // Clean up URL and hide message after delays
+          // Using refs to track timeouts so we can clean them up on unmount
+          urlCleanupTimeoutRef.current = setTimeout(() => {
+            // Only update history if component is still mounted
+            if (typeof window !== "undefined") {
+              window.history.replaceState({}, "", window.location.pathname);
+            }
+            // Schedule message hiding after URL cleanup
+            messageHideTimeoutRef.current = setTimeout(() => {
+              setPurchaseMessage(null);
+            }, 5000);
+          }, 1000);
+          
+        } catch (err) {
+          console.error("Credit claim error:", err);
+          setPurchaseMessage({ 
+            text: err instanceof Error ? err.message : "Failed to add credits. Please contact support.", 
+            type: "error" 
+          });
+        }
+      };
+
+      verifyAndClaim();
+    } else if (purchaseStatus === "cancelled") {
+      setPurchaseMessage({ text: "Purchase cancelled.", type: "error" });
+      messageHideTimeoutRef.current = setTimeout(() => setPurchaseMessage(null), 5000);
+      if (typeof window !== "undefined") {
         window.history.replaceState({}, "", window.location.pathname);
       }
     }
+
+    // Cleanup function: clear any pending timeouts when component unmounts or effect re-runs
+    return () => {
+      if (urlCleanupTimeoutRef.current) {
+        clearTimeout(urlCleanupTimeoutRef.current);
+        urlCleanupTimeoutRef.current = null;
+      }
+      if (messageHideTimeoutRef.current) {
+        clearTimeout(messageHideTimeoutRef.current);
+        messageHideTimeoutRef.current = null;
+      }
+    };
   }, [addCredits]);
 
   // ===== RENDER =====
   return (
     <div className="h-screen flex flex-col bg-slate-900">
+      {/* ===== PURCHASE STATUS MESSAGE ===== */}
+      {purchaseMessage && (
+        <div className={`
+          fixed top-20 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-2xl border flex items-center gap-3
+          ${purchaseMessage.type === "success" ? "bg-green-500/10 border-green-500/50 text-green-400" : ""}
+          ${purchaseMessage.type === "loading" ? "bg-blue-500/10 border-blue-500/50 text-blue-400" : ""}
+          ${purchaseMessage.type === "error" ? "bg-red-500/10 border-red-500/50 text-red-400" : ""}
+        `}>
+          {purchaseMessage.type === "loading" && (
+            <svg 
+              className="animate-spin h-5 w-5" 
+              viewBox="0 0 24 24"
+              role="status"
+              aria-labelledby="spinner-title"
+              focusable="false"
+            >
+              <title id="spinner-title">Loading…</title>
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          )}
+          <span className="font-medium">{purchaseMessage.text}</span>
+          {purchaseMessage.type !== "loading" && (
+            <button 
+              type="button"
+              onClick={() => setPurchaseMessage(null)}
+              className="ml-2 hover:opacity-70"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ===== TOP BAR ===== */}
       <header className="flex items-center justify-between px-4 py-3 bg-slate-800 border-b border-slate-700">
         {/* Left side: Logo + Language selector */}

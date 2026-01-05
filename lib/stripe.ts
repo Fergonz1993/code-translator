@@ -37,14 +37,19 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
 
 let stripePromise: Promise<Stripe | null> | null = null;
 
-export function getStripe() {
+/**
+ * Gets the client-side Stripe instance.
+ * Always returns a Promise to be consistent for all callers.
+ */
+export function getStripe(): Promise<Stripe | null> {
   if (!stripePromise) {
     const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
     if (!key) {
       console.warn("Stripe publishable key not configured");
-      return null;
+      stripePromise = Promise.resolve(null);
+    } else {
+      stripePromise = loadStripe(key);
     }
-    stripePromise = loadStripe(key);
   }
   return stripePromise;
 }
@@ -60,6 +65,11 @@ export function formatPrice(cents: number): string {
 // Calculate price per credit for display
 
 export function pricePerCredit(pkg: CreditPackage): string {
+  // Defensive guard: Ensure credits is a positive number to avoid division by zero or NaN
+  if (!pkg.credits || pkg.credits <= 0) {
+    return "N/A";
+  }
+  
   const perCredit = pkg.price / pkg.credits;
   return `$${perCredit.toFixed(2)}/credit`;
 }

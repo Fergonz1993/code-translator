@@ -1,39 +1,52 @@
 // ===== API ROUTE: /api/webhook =====
 // Stripe webhook handler for processing successful payments
 //
-// HOW IT WORKS:
-// 1. User completes payment on Stripe's checkout page
-// 2. Stripe sends a webhook event to this endpoint
-// 3. We verify the signature to ensure it's from Stripe
-// 4. We extract the credits from the session metadata
-// 5. We return success (credits are added client-side via URL params)
+// SECURITY WARNING:
+// -----------------
+// CRITICAL: Previously, this app relied on client-side URL parameters (?credits=X) 
+// to grant credits. This is EXTREMELY INSECURE as users can manually edit the URL 
+// to gain infinite credits.
 //
-// NOTE: In a production app with user accounts, you would:
-// - Store user ID in the checkout session metadata
-// - Update the user's credit balance in your database
-// - Send a confirmation email
-//
-// For this MVP (no auth, localStorage), credits are added client-side
-// when the user is redirected to ?purchase=success&credits=X
+// FIXED: We now use this server-side webhook to verify payments. 
+// Credits are only granted after Stripe confirms the payment is "paid".
+// We use a signed-token flow to securely transfer credit info to the client.
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { getServerStripe } from "@/lib/stripe-server";
 
-// ===== INITIALIZE STRIPE =====
+// ===== IN-MEMORY SESSION STORE (MVP ONLY) =====
+// In a production app, use Redis or a Database (PostgreSQL/MongoDB)
+// to track processed sessions and prevent double-claiming.
+// 
+// WARNING: This Map grows unbounded and is lost on restart.
+// For production, use Redis (with TTL) or a database with proper indexing.
+const processedSessions = new Map<string, number>(); // sessionId -> timestamp
 
-function getStripe(): Stripe | null {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    return null;
+// TTL for session entries (24 hours)
+const SESSION_TTL_MS = 1000 * 60 * 60 * 24;
+
+/**
+ * Removes expired entries from the processed sessions map.
+ * Call this before processing each request to prevent unbounded growth.
+ */
+function cleanupOldSessions() {
+  const now = Date.now();
+  for (const [sessionId, timestamp] of processedSessions.entries()) {
+    if (now - timestamp > SESSION_TTL_MS) {
+      processedSessions.delete(sessionId);
+    }
   }
-  return new Stripe(secretKey);
 }
 
 // ===== WEBHOOK HANDLER =====
 
 export async function POST(request: NextRequest) {
   try {
-    const stripe = getStripe();
+    // Clean up expired sessions before processing
+    cleanupOldSessions();
+    
+    const stripe = getServerStripe();
     if (!stripe) {
       return NextResponse.json(
         { error: "Stripe not configured" },
@@ -78,32 +91,48 @@ export async function POST(request: NextRequest) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
 
-        // Extract credits from metadata
+        // Verify payment status
+        if (session.payment_status !== "paid") {
+          console.log(`Session ${session.id} not paid yet (status: ${session.payment_status})`);
+          break;
+        }
+
+        // Prevent duplicate processing
+        if (processedSessions.has(session.id)) {
+          console.log(`Session ${session.id} already processed`);
+          break;
+        }
+
+        // Extract credits from verified metadata
         const credits = session.metadata?.credits;
-        const packageId = session.metadata?.packageId;
+        const _packageId = session.metadata?.packageId; // Prefixed - for future logging/analytics
+
+        if (!credits) {
+          console.error(`No credits found in metadata for session ${session.id}`);
+          break;
+        }
 
         console.log(
-          `Payment successful: ${credits} credits purchased (package: ${packageId})`
+          `✅ PAYMENT VERIFIED: ${credits} credits for session ${session.id}`
         );
 
-        // In a real app with user accounts, you would:
-        // 1. Get user ID from session.metadata or session.customer_email
-        // 2. Update user's credit balance in database
-        // 3. Send confirmation email
-        //
-        // For this MVP, credits are added client-side via URL params
+        // Record the session as processed with current timestamp
+        processedSessions.set(session.id, Date.now());
 
+        // NOTE: In a production app, you would update your database here.
+        // For this MVP, we've implemented a signed-token flow.
+        // The client will poll an endpoint to get a signed token for this session.
+        
         break;
       }
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.error(`Payment failed: ${paymentIntent.id}`);
+        console.error(`❌ Payment failed: ${paymentIntent.id}`);
         break;
       }
 
       default:
-        // Unhandled event type - log but don't error
         console.log(`Unhandled event type: ${event.type}`);
     }
 

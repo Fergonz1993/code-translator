@@ -70,20 +70,24 @@ export function BuyCreditsModal({
 
   return (
     // ===== BACKDROP =====
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+    <button
+      type="button"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 border-0 cursor-default"
       onClick={onClose}
+      aria-label="Close modal"
     >
       {/* ===== MODAL CONTENT ===== */}
       <div
-        className="bg-slate-800 rounded-lg max-w-md w-full p-6 shadow-xl"
+        className="bg-slate-800 rounded-lg max-w-md w-full p-6 shadow-xl cursor-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ===== HEADER ===== */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-white">Buy Credits</h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-slate-400 hover:text-white transition-colors"
           >
             <svg
@@ -91,6 +95,7 @@ export function BuyCreditsModal({
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -114,6 +119,7 @@ export function BuyCreditsModal({
           {CREDIT_PACKAGES.map((pkg) => (
             <button
               key={pkg.id}
+              type="button"
               onClick={() => handlePurchase(pkg.id)}
               disabled={isLoading}
               className={`
@@ -163,12 +169,17 @@ export function BuyCreditsModal({
         {/* ===== LOADING OVERLAY ===== */}
         {isLoading && (
           <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center rounded-lg">
-            <div className="flex items-center gap-3 text-white">
+            <div 
+              className="flex items-center gap-3 text-white"
+              role="status"
+              aria-label="Loading, redirecting to checkout"
+            >
               <svg
                 className="animate-spin h-5 w-5"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
+                aria-hidden="true"
               >
                 <circle
                   className="opacity-25"
@@ -184,11 +195,12 @@ export function BuyCreditsModal({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Redirecting to checkout...
+              <span>Redirecting to checkout...</span>
+              <span className="sr-only">Loading...</span>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

@@ -10,26 +10,15 @@
 // 6. Webhook (separate endpoint) handles adding credits to user
 
 import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { getServerStripe } from "@/lib/stripe-server";
 import { CREDIT_PACKAGES } from "@/lib/stripe";
-
-// ===== INITIALIZE STRIPE =====
-// Only initialize if we have a secret key
-
-function getStripe(): Stripe | null {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    return null;
-  }
-  return new Stripe(secretKey);
-}
 
 // ===== CREATE CHECKOUT SESSION =====
 
 export async function POST(request: NextRequest) {
   try {
     // ===== STEP 1: Get Stripe instance =====
-    const stripe = getStripe();
+    const stripe = getServerStripe();
     if (!stripe) {
       return NextResponse.json(
         {
@@ -81,12 +70,15 @@ export async function POST(request: NextRequest) {
       ],
       // ===== METADATA =====
       // We store the credits here so the webhook knows how many to add
+      // This is verified server-side via Stripe webhook metadata
       metadata: {
         credits: creditPackage.credits.toString(),
         packageId: creditPackage.id,
       },
       // ===== REDIRECT URLS =====
-      success_url: `${origin}?purchase=success&credits=${creditPackage.credits}`,
+      // We removed &credits=... to prevent client-side URL spoofing.
+      // Credits are now granted via server-side webhook and a signed-token claim flow.
+      success_url: `${origin}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}?purchase=cancelled`,
     });
 

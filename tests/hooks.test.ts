@@ -1,7 +1,7 @@
 // ===== HOOKS TESTS =====
 // Tests for custom React hooks
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useDebounce } from "@/hooks/useDebounce";
 
@@ -30,6 +30,10 @@ Object.defineProperty(window, "localStorage", {
 describe("useDebounce", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("should return initial value immediately", () => {
