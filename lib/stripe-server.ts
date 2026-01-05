@@ -25,11 +25,9 @@ export function getServerStripe(): Stripe | null {
   }
 
   // Initialize and cache the instance
-  // Pin API version to ensure consistent behavior across deployments
-  // See: https://stripe.com/docs/api/versioning
-  // Current stable version: 2024-11-20.acacia (update when Stripe releases new versions)
+  // Note: We don't specify apiVersion - SDK uses its bundled default version
+  // This avoids TypeScript errors when Stripe updates their types
   stripeInstance = new Stripe(secretKey, {
-    apiVersion: "2024-11-20.acacia",
     appInfo: {
       name: "Code Translator",
       version: "0.1.0",
