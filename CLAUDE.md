@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+> [!IMPORTANT]
+> **🔄 ON EVERY NEW SESSION: Check `AGENT_STATE.md` FIRST!**
+> - If Mode is `RUNNING` or `PAUSED` → Resume immediately, no questions asked
+> - User can say: `resume`, `continue`, `go`, or `/turbo-loop` to trigger
+> - If user sends empty or unclear message, check AGENT_STATE.md anyway
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
@@ -42,7 +48,7 @@ User types code → 800ms debounce → POST /api/translate → AI Provider → J
 
 ### Payment Modes
 1. **Credits mode**: Uses server-side API keys from environment variables, deducts 1 credit per translation
-2. **BYOK mode**: User provides their own API key, sent directly to AI provider (never stored server-side)
+2. **BYOK mode**: User provides their own API key, stored locally and proxied through the server (never stored server-side)
 
 ### Supported AI Models
 | Model ID | Provider | Notes |
@@ -67,6 +73,13 @@ For Credits mode (server-side API keys):
 OPENAI_API_KEY=sk-...
 GOOGLE_API_KEY=...
 ANTHROPIC_API_KEY=sk-ant-...
+```
+
+For server-side sessions and credits:
+```
+SESSION_SECRET=replace-with-a-long-random-string
+# Optional (defaults to ./data/credits.sqlite)
+CREDITS_DB_PATH=./data/credits.sqlite
 ```
 
 ## Code Style

@@ -5,7 +5,7 @@
 "use client"; // This runs in the browser
 
 import { useState } from "react";
-import { Download, FileText, FileCode, FileJson, Share2, Check } from "lucide-react";
+import { FileText, FileCode, FileJson, Share2, Check } from "lucide-react";
 import type { TranslatedLine } from "@/lib/types";
 import { exportToTxt, exportToMarkdown, exportToJson, generateShareUrl } from "@/lib/export-utils";
 
@@ -14,11 +14,14 @@ interface EnglishPaneProps {
   code: string;                    // The original code (for exporting)
   language: string;                // The language name (for exporting)
   model: string;                   // The model name (for exporting)
-  translations: TranslatedLine[];  // Array of { line, english } objects
+  translations: TranslatedLine[];  // Array of { lineNumber, line, english } objects
   isLoading: boolean;              // Show loading state
   error: string | null;            // Any error message to display
+  autoTranslate: boolean;          // Whether auto-translate is enabled
+  isDirty: boolean;                // Whether translations are out of date
   hoveredLine: number | null;      // Which line is being hovered (for sync highlighting)
   onHoverLine: (line: number | null) => void; // Called when user hovers a line
+  onTranslate: () => void;         // Manual translation trigger
 }
 
 // ===== THE COMPONENT =====
@@ -29,8 +32,11 @@ export function EnglishPane({
   translations,
   isLoading,
   error,
+  autoTranslate,
+  isDirty,
   hoveredLine,
   onHoverLine,
+  onTranslate,
 }: EnglishPaneProps) {
   const [isShared, setIsShared] = useState(false);
 
@@ -54,6 +60,7 @@ export function EnglishPane({
           {!isLoading && translations.length > 0 && (
             <div className="flex items-center gap-1 border-l border-slate-200 dark:border-slate-800 ml-2 pl-4">
               <button
+                type="button"
                 onClick={() => exportToTxt(code, translations)}
                 className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
                 title="Export as Text"
@@ -61,6 +68,7 @@ export function EnglishPane({
                 <FileText className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => exportToMarkdown(code, language, translations)}
                 className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
                 title="Export as Markdown"
@@ -68,6 +76,7 @@ export function EnglishPane({
                 <FileCode className="w-4 h-4" />
               </button>
               <button
+                type="button"
                 onClick={() => exportToJson(code, language, model, translations)}
                 className="p-1.5 text-slate-400 hover:text-blue-500 transition-colors"
                 title="Export as JSON"
@@ -78,6 +87,7 @@ export function EnglishPane({
               <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
 
               <button
+                type="button"
                 onClick={handleShare}
                 className={`p-1.5 transition-all ${isShared ? "text-green-500" : "text-slate-400 hover:text-blue-500"}`}
                 title="Copy share link"
@@ -88,16 +98,44 @@ export function EnglishPane({
           )}
         </div>
 
-        {/* Show count of translated lines */}
-        {translations.length > 0 && (
-          <span className="text-xs text-slate-400 dark:text-slate-500">
-            {translations.length} lines
-          </span>
-        )}
+        {/* Right-side controls */}
+        <div className="flex items-center gap-3">
+          {!autoTranslate && (
+            <button
+              type="button"
+              onClick={onTranslate}
+              disabled={!isDirty || isLoading}
+              className={`
+                sm:hidden text-xs px-2 py-1 rounded transition-colors
+                ${!isDirty || isLoading
+                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-500"
+                }
+              `}
+            >
+              Translate
+            </button>
+          )}
+
+          {translations.length > 0 && (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              {translations.length} lines
+            </span>
+          )}
+        </div>
       </div>
 
       {/* ===== CONTENT AREA ===== */}
       <div className="flex-1 overflow-auto">
+        {/* ===== MANUAL MODE NOTICE ===== */}
+        {!autoTranslate && isDirty && (
+          <div className="px-4 pt-4">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-amber-700 dark:text-amber-200 text-xs">
+              Auto-translate is off. Click Translate to update these lines.
+            </div>
+          </div>
+        )}
+
         {/* ===== ERROR STATE ===== */}
         {error && (
           <div className="p-4">
@@ -134,38 +172,45 @@ export function EnglishPane({
         {/* ===== TRANSLATIONS LIST ===== */}
         {translations.length > 0 && (
           <div className="p-4 space-y-0">
-            {translations.map((item, index) => (
-              <div
-                key={index}
-                className={`
+            {translations.map((item) => {
+              const lineIndex = item.lineNumber - 1;
+              return (
+                <div
+                  key={item.lineNumber}
+                  role="listitem"
+                  tabIndex={0}
+                  className={`
                   flex items-start gap-3 py-2 px-2 rounded-md
                   transition-colors duration-150
-                  ${hoveredLine === index
-                    ? "bg-blue-50 dark:bg-blue-900/30"
-                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                  }
+                  ${hoveredLine === lineIndex
+                      ? "bg-blue-50 dark:bg-blue-900/30"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                    }
                 `}
-                onMouseEnter={() => onHoverLine(index)}
-                onMouseLeave={() => onHoverLine(null)}
-              >
-                {/* ===== LINE NUMBER ===== */}
-                <span className="text-slate-400 dark:text-slate-600 text-xs font-mono w-6 text-right flex-shrink-0 pt-0.5">
-                  {index + 1}
-                </span>
+                  onMouseEnter={() => onHoverLine(lineIndex)}
+                  onMouseLeave={() => onHoverLine(null)}
+                  onFocus={() => onHoverLine(lineIndex)}
+                  onBlur={() => onHoverLine(null)}
+                >
+                  {/* ===== LINE NUMBER ===== */}
+                  <span className="text-slate-400 dark:text-slate-600 text-xs font-mono w-6 text-right flex-shrink-0 pt-0.5">
+                    {item.lineNumber}
+                  </span>
 
-                {/* ===== TRANSLATION ===== */}
-                <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed flex-1">
-                  {item.english === "---" ? (
-                    // Blank line separator
-                    <span className="text-slate-400 dark:text-slate-600 italic">
-                      (blank line)
-                    </span>
-                  ) : (
-                    item.english
-                  )}
-                </p>
-              </div>
-            ))}
+                  {/* ===== TRANSLATION ===== */}
+                  <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed flex-1">
+                    {item.english === "---" ? (
+                      // Blank line separator
+                      <span className="text-slate-400 dark:text-slate-600 italic">
+                        (blank line)
+                      </span>
+                    ) : (
+                      item.english
+                    )}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

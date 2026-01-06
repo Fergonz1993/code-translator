@@ -52,6 +52,38 @@ GOOGLE_API_KEY=...
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
+Add server-side credits settings:
+
+```
+SESSION_SECRET=replace-with-a-long-random-string
+# Optional (defaults to ./data/credits.sqlite)
+CREDITS_DB_PATH=./data/credits.sqlite
+```
+
+Optional AI resilience tuning:
+
+```
+# Provider request timeout (ms)
+AI_TIMEOUT_MS=30000
+# Retry attempts for transient provider errors
+AI_RETRY_ATTEMPTS=2
+AI_RETRY_BASE_MS=250
+AI_RETRY_MAX_MS=2000
+```
+
+Optional server-side cache tuning:
+
+```
+# Max in-memory LRU entries (set 0 to disable)
+CACHE_LRU_MAX_ENTRIES=1000
+```
+
+Optional SQLite tuning:
+```
+# Busy timeout for SQLite (ms)
+SQLITE_BUSY_TIMEOUT_MS=2500
+```
+
 ### 3. Run the Development Server
 
 ```bash
@@ -70,7 +102,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### BYOK Mode (Bring Your Own Key)
 - Add your own API key in Settings
 - Unlimited translations
-- Keys stored locally in your browser (never sent to our servers)
+- Keys stored locally in your browser and proxied through our server (not stored server-side)
 
 ## Tech Stack
 
@@ -107,6 +139,20 @@ bun run start    # Run production build
 bun run lint     # Check for code issues
 bun run test     # Run tests
 ```
+
+Testing notes:
+- `tests/test-utils.tsx` wraps components with the theme provider and provides `userEvent`.
+
+Sanity scenario:
+- Submit a translate request with a valid model and API key; expect a 200 with `translations` and `requestId`, and retries on transient 429/timeout errors. In credits mode, expect a credits consumption log and a refund log if the provider call fails.
+
+API errors:
+- Error responses include `error`, `code`, and `requestId` for consistent client handling.
+
+Observability:
+- `/api/translate` logs a structured JSON line with `requestId`, `model`, `provider`, and `latencyMs`.
+- Credits usage emits structured JSON logs with `requestId`, `action`, and remaining balance.
+- API routes emit structured JSON logs with `route`, `method`, `status`, `requestId`, and `latencyMs`.
 
 ## License
 

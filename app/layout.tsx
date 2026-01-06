@@ -5,6 +5,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/Toast";
 import "./globals.css";
 
 // ===== FONT SETUP =====
@@ -37,8 +38,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* The actual page content goes here */}
-          {children}
+          <ToastProvider>
+            {/* The actual page content goes here */}
+            {children}
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -167,7 +167,7 @@ export function SettingsModal({
                 <div>
                   <div className="text-white font-medium">Use my own API key (BYOK)</div>
                   <div className="text-sm text-slate-400">
-                    Unlimited translations. Your key stays in your browser.
+                    Unlimited translations. Your key is proxied through our server.
                   </div>
                 </div>
               </label>
@@ -256,7 +256,7 @@ export function SettingsModal({
 
                 <p className="text-xs text-slate-500">
                   Your API key is stored only in your browser&apos;s local storage.
-                  It&apos;s never sent to our servers.
+                  It is sent to our server to proxy requests, but we do not store it.
                 </p>
               </div>
             </div>

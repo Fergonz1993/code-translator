@@ -9,7 +9,7 @@
 // SECURITY NOTE:
 // API keys are stored in localStorage which is not encrypted.
 // This is acceptable for a client-side app where the user controls their own browser.
-// We never send these keys to our backend - they go directly to the AI provider.
+// Keys are sent to our server to proxy requests, but they are never stored server-side.
 
 "use client";
 

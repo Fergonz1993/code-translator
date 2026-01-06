@@ -1,0 +1,61 @@
+import { describe, it, expect } from "vitest";
+import { translateRequestSchema } from "@/lib/schemas";
+
+describe("translateRequestSchema", () => {
+    const validRequest = {
+        code: "const x = 1;",
+        language: "javascript",
+        model: "gpt-4o-mini",
+        requestId: "550e8400-e29b-41d4-a716-446655440000",
+    };
+
+    it("accepts a valid request", () => {
+        const result = translateRequestSchema.safeParse(validRequest);
+        expect(result.success).toBe(true);
+    });
+
+    it("requires code", () => {
+        const result = translateRequestSchema.safeParse({ ...validRequest, code: "" });
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects code over 50KB", () => {
+        const longCode = "a".repeat(50001);
+        const result = translateRequestSchema.safeParse({ ...validRequest, code: longCode });
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects invalid model", () => {
+        const result = translateRequestSchema.safeParse({ ...validRequest, model: "invalid-model" });
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects invalid UUID for requestId", () => {
+        const result = translateRequestSchema.safeParse({ ...validRequest, requestId: "not-a-uuid" });
+        expect(result.success).toBe(false);
+    });
+
+    it("accepts optional lineNumbers", () => {
+        const result = translateRequestSchema.safeParse({ 
+            ...validRequest, 
+            lineNumbers: [1, 2, 3] 
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("rejects negative lineNumbers", () => {
+        const result = translateRequestSchema.safeParse({ 
+            ...validRequest, 
+            lineNumbers: [1, -1] 
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it("rejects too many lineNumbers", () => {
+        const result = translateRequestSchema.safeParse({ 
+            ...validRequest, 
+            lineNumbers: Array.from({ length: 1001 }, (_, i) => i + 1)
+        });
+        expect(result.success).toBe(false);
+    });
+});

@@ -6,11 +6,25 @@ import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
 import { CreditsState, INITIAL_CREDITS } from "@/lib/types";
+import { SQLITE_BUSY_TIMEOUT_MS } from "@/lib/constants";
 
 // ===== DATABASE SETUP =====
 
 const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "credits.sqlite");
-const DB_PATH = process.env.CREDITS_DB_PATH || DEFAULT_DB_PATH;
+
+function resolveDbPath(): string {
+  return process.env.CREDITS_DB_PATH || DEFAULT_DB_PATH;
+}
+
+function getBusyTimeoutMs(): number {
+  const raw = process.env.SQLITE_BUSY_TIMEOUT_MS;
+  if (!raw) return SQLITE_BUSY_TIMEOUT_MS;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return SQLITE_BUSY_TIMEOUT_MS;
+
+  return Math.max(0, Math.floor(parsed));
+}
 
 let dbInstance: Database.Database | null = null;
 
@@ -18,11 +32,13 @@ function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
   // Ensure the data directory exists
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  const dbPath = resolveDbPath();
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-  const db = new Database(DB_PATH);
+  const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("synchronous = NORMAL");
+  db.pragma(`busy_timeout = ${getBusyTimeoutMs()}`);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS credits_balance (
@@ -43,6 +59,8 @@ function getDb(): Database.Database {
       created_at INTEGER NOT NULL,
       FOREIGN KEY(session_id) REFERENCES credits_balance(session_id)
     );
+
+    CREATE INDEX IF NOT EXISTS idx_credit_transactions_session_created ON credit_transactions(session_id, created_at);
   `);
 
   dbInstance = db;
@@ -200,4 +218,14 @@ export function consumeCredits(options: {
   });
 
   return run();
+}
+
+/**
+ * Close the database connection.
+ */
+export function closeDb(): void {
+  if (dbInstance) {
+    dbInstance.close();
+    dbInstance = null;
+  }
 }

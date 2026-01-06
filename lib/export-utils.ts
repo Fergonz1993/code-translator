@@ -23,8 +23,8 @@ export function exportToTxt(code: string, translations: TranslatedLine[]) {
   let content = "CODE TRANSLATION REPORT\n";
   content += "=======================\n\n";
   
-  translations.forEach((item, i) => {
-    content += `Line ${i + 1}: ${item.line}\n`;
+  translations.forEach((item) => {
+    content += `Line ${item.lineNumber}: ${item.line}\n`;
     content += `Explanation: ${item.english}\n\n`;
   });
 
@@ -45,8 +45,8 @@ export function exportToMarkdown(code: string, language: string, translations: T
   content += "```\n\n";
 
   content += "## Line-by-Line Explanation\n\n";
-  translations.forEach((item, i) => {
-    content += `### Line ${i + 1}\n`;
+  translations.forEach((item) => {
+    content += `### Line ${item.lineNumber}\n`;
     content += `\`${item.line.trim()}\`\n\n`;
     content += `${item.english}\n\n`;
   });
@@ -96,4 +96,3 @@ export function generateShareUrl(code: string, language: string) {
     return window.location.origin;
   }
 }
-

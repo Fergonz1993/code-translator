@@ -1,0 +1,353 @@
+{
+  "goal": "Backend del Code Translator seguro, resiliente, observable y totalmente testeado",
+  "features": [
+    {
+      "id": "F1",
+      "phase": "Foundation",
+      "title": "Forzar runtime nodejs en rutas API con dependencias nativas",
+      "status": "done",
+      "depends_on": [],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F2",
+      "phase": "Foundation",
+      "title": "Derivar aiModelSchema desde AVAILABLE_MODELS para evitar drift",
+      "status": "done",
+      "depends_on": [],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F3",
+      "phase": "Foundation",
+      "title": "Validar request body de /api/checkout con Zod",
+      "status": "done",
+      "depends_on": [
+        "F2"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F4",
+      "phase": "Foundation",
+      "title": "Validar query param de /api/credits/claim con Zod",
+      "status": "done",
+      "depends_on": [
+        "F2"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F5",
+      "phase": "Foundation",
+      "title": "Crear helper de error API con requestId consistente",
+      "status": "done",
+      "depends_on": [],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F6",
+      "phase": "Foundation",
+      "title": "Agregar requestId a /api/translate en respuestas y errores",
+      "status": "done",
+      "depends_on": [
+        "F5"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F7",
+      "phase": "Security",
+      "title": "Usar APP_URL para redirects de Stripe checkout",
+      "status": "done",
+      "depends_on": [
+        "F3"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F8",
+      "phase": "Security",
+      "title": "Validar Origin/Referer allowlist en translate/checkout/claim",
+      "status": "done",
+      "depends_on": [
+        "F7"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F9",
+      "phase": "Security",
+      "title": "Rate limit por session en /api/translate",
+      "status": "done",
+      "depends_on": [
+        "F1"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck",
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F10",
+      "phase": "Security",
+      "title": "Rechazar API keys BYOK con formato sospechoso",
+      "status": "done",
+      "depends_on": [],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F11",
+      "phase": "Reliability",
+      "title": "Agregar timeout por provider en /api/translate",
+      "status": "done",
+      "depends_on": [
+        "F1"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F12",
+      "phase": "Reliability",
+      "title": "Retry de errores transitorios con backoff",
+      "status": "in_progress",
+      "depends_on": [
+        "F11"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck",
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F13",
+      "phase": "Reliability",
+      "title": "Mapear errores de providers a status codes estables",
+      "status": "todo",
+      "depends_on": [
+        "F5"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck",
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F14",
+      "phase": "Observability",
+      "title": "Loggear latencia y modelo en /api/translate",
+      "status": "todo",
+      "depends_on": [
+        "F6"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F15",
+      "phase": "Observability",
+      "title": "Loggear consumo y refunds de creditos con requestId",
+      "status": "todo",
+      "depends_on": [
+        "F6"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F16",
+      "phase": "Observability",
+      "title": "Helper de logging estructurado para rutas API",
+      "status": "todo",
+      "depends_on": [
+        "F5"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F17",
+      "phase": "Performance",
+      "title": "Cache LRU server-side de traducciones",
+      "status": "todo",
+      "depends_on": [
+        "F11"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck",
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F18",
+      "phase": "Data",
+      "title": "Configurar busy_timeout en SQLite",
+      "status": "todo",
+      "depends_on": [
+        "F1"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F19",
+      "phase": "Data",
+      "title": "Agregar indice para credit_transactions por session_id/created_at",
+      "status": "todo",
+      "depends_on": [
+        "F18"
+      ],
+      "tests": [
+        "bun run lint",
+        "bun run typecheck"
+      ]
+    },
+    {
+      "id": "F20",
+      "phase": "Testing",
+      "title": "Tests unitarios de credits-store (grant/consume/idempotency)",
+      "status": "todo",
+      "depends_on": [
+        "F18"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F21",
+      "phase": "Testing",
+      "title": "Tests de session cookie signing/verificacion",
+      "status": "todo",
+      "depends_on": [],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F22",
+      "phase": "Testing",
+      "title": "Tests de translateRequestSchema (validos/invalidos)",
+      "status": "todo",
+      "depends_on": [
+        "F2"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F23",
+      "phase": "Testing",
+      "title": "Tests de normalizeLineNumbers",
+      "status": "todo",
+      "depends_on": [],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F24",
+      "phase": "Testing",
+      "title": "Tests de parseTranslationResponse",
+      "status": "todo",
+      "depends_on": [],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F25",
+      "phase": "Testing",
+      "title": "Tests de validacion /api/checkout",
+      "status": "todo",
+      "depends_on": [
+        "F3"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F26",
+      "phase": "Testing",
+      "title": "Tests de validacion /api/credits/claim",
+      "status": "todo",
+      "depends_on": [
+        "F4"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F27",
+      "phase": "Testing",
+      "title": "Tests de mapping de errores en /api/translate",
+      "status": "todo",
+      "depends_on": [
+        "F13"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    },
+    {
+      "id": "F28",
+      "phase": "Testing",
+      "title": "Tests de rate limit en /api/translate",
+      "status": "todo",
+      "depends_on": [
+        "F9"
+      ],
+      "tests": [
+        "bun run test"
+      ]
+    }
+  ],
+  "current_feature_id": "F12",
+  "iteration": 9,
+  "last_updated": "2026-01-06T06:32:54Z"
+}

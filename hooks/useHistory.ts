@@ -13,13 +13,36 @@ export function useHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
+  const normalizeTranslations = (translations: HistoryItem["translations"]) => {
+    if (!Array.isArray(translations)) return [];
+
+    return translations.map((item, index) => {
+      // Valid if number and positive
+      if (typeof item.lineNumber === "number" && item.lineNumber > 0) {
+        return item;
+      }
+
+      return {
+        ...item,
+        lineNumber: index + 1,
+      };
+    });
+  };
+
   // ===== LOAD HISTORY =====
   useEffect(() => {
     const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        setHistory(parsed);
+        const parsed = JSON.parse(saved) as HistoryItem[];
+        const normalized = Array.isArray(parsed)
+          ? parsed.map((item) => ({
+              ...item,
+              translations: normalizeTranslations(item.translations),
+            }))
+          : [];
+
+        setHistory(normalized);
       } catch (err) {
         console.error("Failed to parse history:", err);
         setHistory([]);
