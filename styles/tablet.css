@@ -1,0 +1,132 @@
+/* ===== TABLET RESPONSIVE LAYOUT ===== */
+/* Responsive styles for tablet devices */
+
+/* Tablet breakpoint: 768px - 1024px */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Main layout adjustments */
+  .main-container {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  /* Split pane adjustments */
+  .split-pane {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 8rem);
+  }
+  
+  .split-pane > .pane {
+    width: 100%;
+    height: 50vh;
+    min-height: 300px;
+  }
+  
+  /* Code editor sizing */
+  .code-editor {
+    height: 45vh;
+    min-height: 280px;
+  }
+  
+  /* Translation pane sizing */
+  .translation-pane {
+    height: 45vh;
+    min-height: 280px;
+  }
+  
+  /* Header adjustments */
+  .header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .header-title {
+    font-size: 1.25rem;
+  }
+  
+  .header-actions {
+    gap: 0.5rem;
+  }
+  
+  /* Model selector compact mode */
+  .model-selector {
+    min-width: 150px;
+  }
+  
+  .model-selector-label {
+    display: none;
+  }
+  
+  /* Settings modal tablet size */
+  .settings-modal {
+    max-width: 90vw;
+    max-height: 85vh;
+  }
+  
+  /* Hide less important elements */
+  .tablet-hidden {
+    display: none;
+  }
+  
+  /* Show tablet-specific elements */
+  .tablet-visible {
+    display: block;
+  }
+  
+  /* Adjust font sizes */
+  .code-font {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  
+  /* Touch-friendly buttons */
+  .btn-tablet {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Scrollbar visibility */
+  .pane::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  /* Credit display compact */
+  .credits-display {
+    font-size: 0.875rem;
+  }
+  
+  /* Language selector inline */
+  .language-selector {
+    width: auto;
+    min-width: 120px;
+  }
+}
+
+/* Tablet landscape specific */
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+  .split-pane {
+    flex-direction: row;
+  }
+  
+  .split-pane > .pane {
+    width: 50%;
+    height: calc(100vh - 8rem);
+  }
+}
+
+/* iPad specific adjustments */
+@supports (-webkit-touch-callout: none) {
+  @media (min-width: 768px) and (max-width: 1024px) {
+    /* Safe area insets for notch/home indicator */
+    .main-container {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+    
+    /* Prevent zoom on input focus */
+    input, select, textarea {
+      font-size: 16px;
+    }
+  }
+}

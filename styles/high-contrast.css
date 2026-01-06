@@ -1,0 +1,32 @@
+/* High contrast accessibility theme - WCAG 2.1 AAA */
+[data-theme="high-contrast"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --text-primary: #ffffff;
+  --text-secondary: #e5e5e5;
+  --border-primary: #ffffff;
+  --accent-primary: #00d4ff;
+  --accent-error: #ff3333;
+  --accent-success: #00ff88;
+}
+
+[data-theme="high-contrast"] body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme="high-contrast"] *:focus-visible {
+  outline: 3px solid var(--accent-primary) !important;
+  outline-offset: 2px !important;
+}
+
+[data-theme="high-contrast"] button {
+  border: 2px solid var(--text-primary);
+  min-height: 44px;
+  min-width: 44px;
+}
+
+[data-theme="high-contrast"] a {
+  color: var(--accent-primary);
+  text-decoration: underline;
+}

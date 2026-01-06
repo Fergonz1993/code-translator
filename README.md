@@ -149,6 +149,9 @@ Sanity scenario:
 API errors:
 - Error responses include `error`, `code`, and `requestId` for consistent client handling.
 
+Database:
+- Credits ledger includes an index on `credit_transactions(session_id, created_at)` for faster per-session queries.
+
 Observability:
 - `/api/translate` logs a structured JSON line with `requestId`, `model`, `provider`, and `latencyMs`.
 - Credits usage emits structured JSON logs with `requestId`, `action`, and remaining balance.

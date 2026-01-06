@@ -1,96 +1,67 @@
-// ===== SHARE BUTTON COMPONENT =====
-// Share translation link via Web Share API or clipboard.
+'use client';
 
-"use client";
+// ===== SHARE TO SOCIAL =====
+// Share translations to social media.
 
-import { useState } from "react";
-import { Share2, Check, Link, Twitter } from "lucide-react";
+import { useState } from 'react';
 
-interface ShareButtonProps {
-  title?: string;
-  text?: string;
+interface ShareOptions {
+  title: string;
+  text: string;
   url?: string;
-  className?: string;
 }
 
-export function ShareButton({
-  title = "Code Translation",
-  text = "Check out this code translation!",
-  url = typeof window !== "undefined" ? window.location.href : "",
-  className = "",
-}: ShareButtonProps) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const handleShare = async () => {
-    // Try native share API first (mobile)
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text, url });
-        return;
-      } catch {
-        // User cancelled or error, fall back to menu
-      }
-    }
-
-    // Show share menu
-    setShowMenu(true);
-  };
-
-  const handleCopyLink = async () => {
+export async function share(options: ShareOptions): Promise<boolean> {
+  if (navigator.share) {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-        setShowMenu(false);
-      }, 2000);
+      await navigator.share(options);
+      return true;
     } catch {
-      // Fallback
+      return false;
     }
-  };
+  }
+  return false;
+}
 
-  const handleTwitter = () => {
-    const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-    window.open(tweetUrl, "_blank");
-    setShowMenu(false);
-  };
+export function shareToTwitter(text: string, url?: string): void {
+  const params = new URLSearchParams({
+    text: text.slice(0, 240),
+    ...(url && { url }),
+  });
+  window.open(`https://twitter.com/intent/tweet?${params}`, '_blank');
+}
 
+export async function copyShareableLink(id: string): Promise<string> {
+  const url = `${window.location.origin}/share/${id}`;
+  await navigator.clipboard.writeText(url);
+  return url;
+}
+
+export function ShareButton({ title }: { title: string }) {
+  const [open, setOpen] = useState(false);
+  
+  const handleShare = async () => {
+    const shared = await share({ title, text: `Check out this code explanation: ${title}` });
+    if (!shared) setOpen(true);
+  };
+  
   return (
-    <div className={`relative ${className}`}>
-      <button
-        onClick={handleShare}
-        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
-        title="Share"
-      >
-        <Share2 className="w-5 h-5" />
+    <div className="relative">
+      <button onClick={handleShare} className="flex items-center gap-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-200 text-sm">
+        Share
       </button>
-
-      {/* Share menu */}
-      {showMenu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowMenu(false)}
-          />
-          <div className="absolute right-0 mt-1 w-48 py-1 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 z-50">
-            <button
-              onClick={handleCopyLink}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              {copied ? <Check className="w-4 h-4 text-green-500" /> : <Link className="w-4 h-4" />}
-              {copied ? "Copied!" : "Copy link"}
-            </button>
-            <button
-              onClick={handleTwitter}
-              className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <Twitter className="w-4 h-4" />
-              Share on Twitter
-            </button>
-          </div>
-        </>
+      {open && (
+        <div className="absolute right-0 mt-2 w-48 bg-gray-800 rounded-lg shadow-lg border border-gray-700 py-1 z-50">
+          <button onClick={() => { shareToTwitter(title); setOpen(false); }} className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700">
+            Twitter/X
+          </button>
+          <button onClick={() => { copyShareableLink(crypto.randomUUID()); setOpen(false); }} className="w-full px-4 py-2 text-left text-gray-300 hover:bg-gray-700">
+            Copy Link
+          </button>
+        </div>
       )}
     </div>
   );
 }
+
+export default ShareButton;

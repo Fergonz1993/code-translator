@@ -1,0 +1,92 @@
+/* ===== PRINT STYLESHEET ===== */
+/* Optimized styles for printing code explanations */
+
+@media print {
+  /* Hide non-essential elements */
+  header,
+  footer,
+  nav,
+  .no-print,
+  button[class*="translate"],
+  .credits-display,
+  .model-selector,
+  .settings-button,
+  .command-palette {
+    display: none !important;
+  }
+  
+  /* Reset backgrounds */
+  body,
+  main,
+  .main-container {
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Full width layout */
+  .split-pane {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+  
+  .split-pane > .pane {
+    width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid;
+  }
+  
+  /* Code styling */
+  pre, code {
+    font-family: 'Courier New', monospace !important;
+    font-size: 10pt !important;
+    background: #f5f5f5 !important;
+    border: 1px solid #ddd !important;
+    padding: 1em !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+  }
+  
+  /* Explanation styling */
+  .explanation-line {
+    border-bottom: 1px solid #eee;
+    padding: 0.5em 0;
+    page-break-inside: avoid;
+  }
+  
+  .line-number {
+    font-weight: bold;
+    margin-right: 1em;
+  }
+  
+  /* Page breaks */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+  
+  /* Links */
+  a {
+    color: black !important;
+    text-decoration: underline;
+  }
+  
+  a[href^="http"]:after {
+    content: " (" attr(href) ")";
+    font-size: 9pt;
+    color: #666;
+  }
+  
+  /* Page margins */
+  @page {
+    margin: 2cm;
+  }
+  
+  /* Header/footer */
+  @page {
+    @top-center {
+      content: "Code Translator - " attr(data-title);
+    }
+    @bottom-center {
+      content: "Page " counter(page) " of " counter(pages);
+    }
+  }
+}

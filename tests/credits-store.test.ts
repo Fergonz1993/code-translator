@@ -63,6 +63,22 @@ describe("credits-store", () => {
             expect(pragmaSpy).toHaveBeenCalledWith(expect.stringContaining("busy_timeout"));
             pragmaSpy.mockRestore();
         });
+
+        it("should create index for credit_transactions by session/created_at", () => {
+            const sessionId = uniqueSessionId();
+            getCreditsBalance(sessionId);
+            closeDb();
+
+            const db = new Database(TEST_DB_PATH);
+            const row = db
+                .prepare(
+                    "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?"
+                )
+                .get("idx_credit_transactions_session_created") as { name: string } | undefined;
+            db.close();
+
+            expect(row?.name).toBe("idx_credit_transactions_session_created");
+        });
     });
 
     // ===== getCreditsBalance TESTS =====
