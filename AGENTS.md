@@ -11,7 +11,7 @@ Build the most polished, performant, and secure code translation experience.
 ### Current Status
 - **Batch**: 2
 - **Phase**: Fresh Backlog (150+ Features)
-- **Last Completed**: ATOM-018 (busy_timeout configured)
+- **Last Completed**: SEC-001 (CSP nonce for inline scripts)
 
 ---
 
@@ -19,7 +19,7 @@ Build the most polished, performant, and secure code translation experience.
 
 | ID | Feature | Status |
 |----|---------|--------|
-| SEC-001 | Add CSP nonce for inline scripts | ⬜ |
+| SEC-001 | Add CSP nonce for inline scripts | ✅ |
 | SEC-002 | Implement SRI for CDN assets | ⬜ |
 | SEC-003 | API request signature validation for webhooks | ⬜ |
 | SEC-004 | Session rotation after privilege changes | ⬜ |

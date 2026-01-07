@@ -1,7 +1,7 @@
 # TODO_RALPH.md
 
 ## 🔒 P0 — Security
-- [ ] SEC-001: Add CSP nonce for inline scripts
+- [x] SEC-001: Add CSP nonce for inline scripts
 - [ ] SEC-002: Implement SRI for CDN assets
 - [ ] SEC-003: Add API request signature validation
 - [ ] SEC-004: Implement session rotation

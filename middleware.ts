@@ -12,13 +12,8 @@ function generateNonce(): string {
 }
 
 export function middleware(request: NextRequest) {
-    const response = NextResponse.next();
-    
     // Generate nonce for this request
     const nonce = generateNonce();
-    
-    // Store nonce in header for use by components
-    response.headers.set("x-nonce", nonce);
 
     // Content Security Policy with nonce
     const csp = [
@@ -33,6 +28,19 @@ export function middleware(request: NextRequest) {
         "form-action 'self'",
     ].join("; ");
 
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-nonce", nonce);
+    // Next.js reads the CSP from the request headers to attach the nonce.
+    requestHeaders.set("content-security-policy", csp);
+
+    const response = NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    });
+
+    // Store nonce in header for use by components
+    response.headers.set("x-nonce", nonce);
     response.headers.set("Content-Security-Policy", csp);
 
     // XSS Protection
