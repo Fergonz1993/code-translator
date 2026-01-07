@@ -71,9 +71,11 @@ export function escapeSQL(input: string): string {
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "''")
     .replace(/"/g, '""')
+    // eslint-disable-next-line no-control-regex
     .replace(/\x00/g, '\\0')
     .replace(/\n/g, '\\n')
     .replace(/\r/g, '\\r')
+    // eslint-disable-next-line no-control-regex
     .replace(/\x1a/g, '\\Z');
 }
 
@@ -86,7 +88,6 @@ export function buildParameterizedQuery(
   params: Record<string, unknown>
 ): { sql: string; values: unknown[] } {
   const values: unknown[] = [];
-  let index = 1;
   
   const processedSQL = sql.replace(/:(\w+)/g, (_, key) => {
     if (!(key in params)) {

@@ -57,7 +57,7 @@ export class WorkerPool {
         ? new Worker(this.workerUrl)
         : this.workerUrl();
       
-      worker.onmessage = (e: MessageEvent<WorkerMessage>) => {
+      worker.onmessage = (_e: MessageEvent<WorkerMessage>) => {
         this.busy.delete(worker);
         this.processQueue();
       };

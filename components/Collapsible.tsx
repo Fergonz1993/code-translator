@@ -88,7 +88,7 @@ export function CollapsibleGroup({
   accordion = false,
   className = '',
 }: CollapsibleGroupProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [_openIndex, _setOpenIndex] = useState<number | null>(null);
   
   if (!accordion) {
     return <div className={`space-y-2 ${className}`}>{children}</div>;

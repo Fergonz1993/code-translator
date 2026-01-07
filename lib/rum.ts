@@ -71,7 +71,7 @@ export async function initRUM(): Promise<void> {
   
   try {
     // Dynamic import web-vitals (optional dependency)
-    // @ts-ignore - web-vitals may not be installed
+    // @ts-expect-error - web-vitals may not be installed
     const webVitals = await import('web-vitals').catch(() => null);
     if (!webVitals) {
       console.log('[RUM] web-vitals not installed, skipping');

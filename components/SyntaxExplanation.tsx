@@ -144,7 +144,7 @@ export function InlineCode({ children }: { children: React.ReactNode }) {
  */
 export function ExplanationCodeBlock({
   code,
-  language = 'typescript',
+  language: _language = 'typescript',
 }: {
   code: string;
   language?: string;

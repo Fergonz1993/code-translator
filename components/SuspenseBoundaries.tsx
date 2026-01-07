@@ -20,7 +20,7 @@ function DefaultSkeleton() {
 /**
  * Error fallback component.
  */
-function DefaultError({ error }: { error: Error }) {
+function _DefaultError({ error }: { error: Error }) {
   return (
     <div className="text-red-500 p-4 border border-red-500/20 rounded">
       <p className="font-medium">Something went wrong</p>

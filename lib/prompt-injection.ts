@@ -48,9 +48,11 @@ const SUSPICIOUS_PATTERNS = [
   /[A-Za-z0-9+/]{50,}={0,2}/,
   
   // Excessive special characters
+  // eslint-disable-next-line no-useless-escape
   /[^\w\s.,;:'"(){}\[\]<>\/\\-]{10,}/,
   
   // Unicode control characters
+  // eslint-disable-next-line no-control-regex
   /[\u0000-\u001F\u007F-\u009F]/,
   
   // Right-to-left override
@@ -96,6 +98,7 @@ export function sanitizeCodeInput(input: string): SanitizeResult {
   sanitized = sanitized.replace(/[\u200B-\u200D\uFEFF]/g, '');
   
   // Remove Unicode control characters (except newlines and tabs)
+  // eslint-disable-next-line no-control-regex
   sanitized = sanitized.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '');
   
   // Remove right-to-left override characters

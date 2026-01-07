@@ -18,7 +18,7 @@ interface ModelComparisonProps {
   isLoading?: boolean;
 }
 
-export function ModelComparison({ code, results, isLoading }: ModelComparisonProps) {
+export function ModelComparison({ code: _code, results, isLoading }: ModelComparisonProps) {
   const [selectedModels, setSelectedModels] = useState<string[]>(
     results.slice(0, 2).map(r => r.model)
   );

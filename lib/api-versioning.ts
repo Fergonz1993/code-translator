@@ -118,7 +118,7 @@ export function isFeatureAvailable(
 /**
  * Middleware to validate and inject version.
  */
-export function withVersion<T extends { version?: APIVersion }>(
+export function withVersion<_T extends { version?: APIVersion }>(
   handler: (request: Request, version: APIVersion) => Promise<Response>
 ) {
   return async (request: Request): Promise<Response> => {
