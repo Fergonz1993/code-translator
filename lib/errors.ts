@@ -68,6 +68,18 @@ export class AIProviderError extends AppError {
     }
 }
 
+export class ContextLengthExceededError extends AppError {
+    constructor() {
+        super({
+            message:
+                "Your input is too large for this model. Try selecting fewer lines, or paste a smaller snippet.",
+            code: "CONTEXT_LENGTH_EXCEEDED",
+            statusCode: 413,
+            retryable: false,
+        });
+    }
+}
+
 export class RateLimitError extends AppError {
     constructor() {
         super({
@@ -124,6 +136,19 @@ export function toAppError(error: unknown): AppError {
     if (error instanceof Error) {
         // Check for common AI provider error patterns case-insensitively
         const msg = error.message.toLowerCase();
+        const providerCode = (error as { code?: unknown }).code;
+        const nestedProviderCode = (error as { error?: { code?: unknown } }).error?.code;
+
+        if (
+            providerCode === "context_length_exceeded" ||
+            nestedProviderCode === "context_length_exceeded" ||
+            msg.includes("context_length_exceeded") ||
+            msg.includes("context window") ||
+            msg.includes("maximum context length") ||
+            msg.includes("prompt is too long")
+        ) {
+            return new ContextLengthExceededError();
+        }
 
         if (msg.includes("401") || msg.includes("api key") || msg.includes("unauthorized")) {
             return new InvalidAPIKeyError();
