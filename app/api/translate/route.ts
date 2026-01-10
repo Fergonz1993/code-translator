@@ -18,6 +18,12 @@ import type { AIModel, AIProvider, TranslatedLine } from "@/lib/types";
 import { translateRequestSchema, parseRequest } from "@/lib/schemas";
 import { jsonError } from "@/lib/api-errors";
 import { attachSessionCookie, ensureSessionId } from "@/lib/session";
+import { MAX_TRANSLATE_REQUEST_BYTES } from "@/lib/constants";
+import {
+  InvalidJsonBodyError,
+  RequestBodyTooLargeError,
+  readJsonBodyWithLimit,
+} from "@/lib/request-body";
 import { consumeCredits, getCreditsBalance, grantCredits } from "@/lib/credits-store";
 import { checkRateLimit } from "@/lib/rate-limiter";
 import { validateOrigin } from "@/lib/security";
@@ -93,7 +99,30 @@ export async function POST(request: NextRequest) {
 
   try {
     // ===== STEP 1: Parse and validate the request =====
-    const rawBody = await request.json();
+    let rawBody: unknown;
+
+    try {
+      rawBody = await readJsonBodyWithLimit(request, MAX_TRANSLATE_REQUEST_BYTES);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) {
+        return jsonError({
+          error: "Request payload too large.",
+          status: 413,
+          requestId,
+        });
+      }
+
+      if (error instanceof InvalidJsonBodyError) {
+        return jsonError({
+          error: "Invalid JSON body.",
+          status: 400,
+          requestId,
+        });
+      }
+
+      throw error;
+    }
+
     const parsed = parseRequest(translateRequestSchema, rawBody);
 
     if (!parsed.success) {

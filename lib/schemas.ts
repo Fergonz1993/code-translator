@@ -31,7 +31,8 @@ export const translateRequestSchema = z.object({
     model: aiModelSchema,
 
     // Optional: User's own API key (BYOK mode)
-    apiKey: z.string().optional(),
+    // We keep this capped to avoid accidental huge payloads.
+    apiKey: z.string().min(20, "API key too short").max(200, "API key too long").optional(),
 
     // Optional: Specific line numbers to translate (1-based)
     lineNumbers: z

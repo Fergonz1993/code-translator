@@ -30,6 +30,14 @@ describe("translateRequestSchema", () => {
         expect(result.success).toBe(false);
     });
 
+    it("rejects too-long apiKey", () => {
+        const result = translateRequestSchema.safeParse({
+            ...validRequest,
+            apiKey: "a".repeat(201),
+        });
+        expect(result.success).toBe(false);
+    });
+
     it("rejects invalid UUID for requestId", () => {
         const result = translateRequestSchema.safeParse({ ...validRequest, requestId: "not-a-uuid" });
         expect(result.success).toBe(false);

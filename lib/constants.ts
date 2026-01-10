@@ -14,6 +14,10 @@ export const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 // ===== DATABASE =====
 export const SQLITE_BUSY_TIMEOUT_MS = 2500;
 
+// ===== API LIMITS =====
+// Hard cap for incoming JSON payload size (defense-in-depth).
+export const MAX_TRANSLATE_REQUEST_BYTES = 200_000; // ~200KB
+
 // ===== UI =====
 export const UNTRANSLATED_PLACEHOLDER = "Not translated yet";
 export const BLANK_LINE_MARKER = "---";
