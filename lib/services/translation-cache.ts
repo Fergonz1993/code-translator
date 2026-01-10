@@ -119,6 +119,13 @@ function getDb(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_expires_at ON translation_cache(expires_at);
   `);
 
+    // Best-effort cleanup: older versions stored raw user code in this column.
+    // We keep the column (no schema migration), but replace values with a placeholder.
+    db.prepare("UPDATE translation_cache SET code = ? WHERE code != ?").run(
+        REDACTED_CODE_PLACEHOLDER,
+        REDACTED_CODE_PLACEHOLDER
+    );
+
     dbInstance = db;
     return db;
 }

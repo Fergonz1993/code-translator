@@ -134,6 +134,62 @@ describe("translation-cache", () => {
             expect(row!.code).toBe("[redacted]");
         });
 
+        it("should redact legacy cache rows that stored raw code", () => {
+            closeDb();
+            cleanupTestDb();
+
+            const code = "legacy secret code";
+            const language = "typescript";
+            const model = "gpt-4o-mini";
+            const hash = generateCacheKey({ code, language, model });
+            const now = Date.now();
+
+            const db = new Database(TEST_CACHE_PATH);
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS translation_cache (
+                    hash TEXT PRIMARY KEY,
+                    code TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    translations TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL,
+                    hit_count INTEGER DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_expires_at ON translation_cache(expires_at);
+            `);
+
+            db.prepare(
+                `
+                INSERT OR REPLACE INTO translation_cache
+                (hash, code, language, model, translations, created_at, expires_at, hit_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                `
+            ).run(
+                hash,
+                code,
+                language,
+                model,
+                JSON.stringify(sampleTranslations),
+                now,
+                now + 60_000
+            );
+            db.close();
+
+            // Trigger the module to open the DB (and perform its best-effort redaction).
+            getCacheStats();
+
+            closeDb();
+            const checkDb = new Database(TEST_CACHE_PATH);
+            const row = checkDb
+                .prepare("SELECT code FROM translation_cache WHERE hash = ?")
+                .get(hash) as { code: string } | undefined;
+            checkDb.close();
+
+            expect(row).toBeDefined();
+            expect(row!.code).toBe("[redacted]");
+        });
+
         it("should return null for non-existent cache", () => {
             const cached = getCachedTranslation({
                 code: "nonexistent",

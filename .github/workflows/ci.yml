@@ -72,3 +72,11 @@ jobs:
         env:
           SESSION_SECRET: ci-build-secret-not-for-production
           SKIP_ENV_VALIDATION: true
+
+      # ===== SMOKE TEST =====
+      # Starts the production server and checks basic routes.
+      - name: Smoke test
+        run: bun run smoke
+        env:
+          SESSION_SECRET: ci-build-secret-not-for-production
+          SKIP_ENV_VALIDATION: true

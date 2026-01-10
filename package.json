@@ -10,7 +10,8 @@
     "lint:fix": "eslint app components hooks lib --fix",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke": "bun scripts/smoke.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
