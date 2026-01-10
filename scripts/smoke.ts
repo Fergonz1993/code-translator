@@ -113,7 +113,34 @@ async function run() {
       `Expected health status to be healthy/degraded, got ${String(healthJson.status)}`
     );
 
-    // 2) The homepage should respond with HTML.
+    // 2) Credits balance should respond 200 and return JSON.
+    const creditsResponse = await fetchWithTimeout(`${baseUrl}/api/credits/balance`, 5_000);
+    assert(
+      creditsResponse.ok,
+      `Expected /api/credits/balance 200, got ${creditsResponse.status}`
+    );
+
+    const creditsJson = (await creditsResponse.json()) as {
+      credits?: {
+        total?: unknown;
+        used?: unknown;
+        remaining?: unknown;
+      };
+    };
+
+    assert(
+      creditsJson.credits && typeof creditsJson.credits === "object",
+      "Expected /api/credits/balance to return a credits object"
+    );
+
+    assert(
+      typeof creditsJson.credits.total === "number" &&
+        typeof creditsJson.credits.used === "number" &&
+        typeof creditsJson.credits.remaining === "number",
+      "Expected credits.total/used/remaining to be numbers"
+    );
+
+    // 3) The homepage should respond with HTML.
     const pageResponse = await fetchWithTimeout(`${baseUrl}/`, 5_000);
     assert(pageResponse.ok, `Expected / 200, got ${pageResponse.status}`);
 

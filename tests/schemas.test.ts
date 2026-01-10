@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { translateRequestSchema } from "@/lib/schemas";
+import {
+    claimRequestSchema,
+    checkoutRequestSchema,
+    translateRequestSchema,
+} from "@/lib/schemas";
 
 describe("translateRequestSchema", () => {
     const validRequest = {
@@ -65,5 +69,29 @@ describe("translateRequestSchema", () => {
             lineNumbers: Array.from({ length: 1001 }, (_, i) => i + 1)
         });
         expect(result.success).toBe(false);
+    });
+});
+
+describe("checkoutRequestSchema", () => {
+    it("accepts valid packageId", () => {
+        const result = checkoutRequestSchema.safeParse({ packageId: "credits_50" });
+        expect(result.success).toBe(true);
+    });
+
+    it("rejects unknown packageId", () => {
+        const result = checkoutRequestSchema.safeParse({ packageId: "credits_999" });
+        expect(result.success).toBe(false);
+    });
+});
+
+describe("claimRequestSchema", () => {
+    it("requires checkoutSessionId", () => {
+        const result = claimRequestSchema.safeParse({ checkoutSessionId: "" });
+        expect(result.success).toBe(false);
+    });
+
+    it("accepts a non-empty checkoutSessionId", () => {
+        const result = claimRequestSchema.safeParse({ checkoutSessionId: "cs_test_123" });
+        expect(result.success).toBe(true);
     });
 });
