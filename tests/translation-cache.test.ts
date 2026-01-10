@@ -108,6 +108,32 @@ describe("translation-cache", () => {
             expect(cached!.translations[0].english).toBe("Create a variable x with value 5");
         });
 
+        it("should not persist raw code in the cache database", () => {
+            const code = "const secret = 123;";
+            const language = "typescript";
+            const model = "gpt-4o-mini";
+
+            setCachedTranslation({
+                code,
+                language,
+                model,
+                translations: sampleTranslations,
+            });
+
+            // Close the shared DB connection so we can inspect the on-disk DB cleanly.
+            closeDb();
+
+            const db = new Database(TEST_CACHE_PATH);
+            const hash = generateCacheKey({ code, language, model });
+            const row = db
+                .prepare("SELECT code FROM translation_cache WHERE hash = ?")
+                .get(hash) as { code: string } | undefined;
+            db.close();
+
+            expect(row).toBeDefined();
+            expect(row!.code).toBe("[redacted]");
+        });
+
         it("should return null for non-existent cache", () => {
             const cached = getCachedTranslation({
                 code: "nonexistent",

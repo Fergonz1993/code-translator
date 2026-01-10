@@ -1,4 +1,4 @@
-// ===== SECURITY HEADERS MIDDLEWARE =====
+// ===== SECURITY HEADERS PROXY (PREVIOUSLY MIDDLEWARE) =====
 // Apply security headers to all responses with CSP nonce support.
 
 import { NextResponse } from "next/server";
@@ -6,12 +6,17 @@ import type { NextRequest } from "next/server";
 
 // Generate a random nonce for this request
 function generateNonce(): string {
-    const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
-    return Buffer.from(array).toString('base64');
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+
+    let binary = "";
+    for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     // Generate nonce for this request
     const nonce = generateNonce();
 

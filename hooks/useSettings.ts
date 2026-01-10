@@ -20,6 +20,7 @@ import {
   PaymentMode,
   AIModel,
   AIProvider,
+  getProviderForModel,
 } from "@/lib/types";
 
 // Key used in localStorage
@@ -96,12 +97,7 @@ export function useSettings() {
   }, []);
 
   // ===== CHECK IF USER HAS API KEY FOR CURRENT MODEL =====
-  const getProviderForModel = (model: AIModel): AIProvider => {
-    if (model.startsWith("gpt")) return "openai";
-    if (model.startsWith("gemini")) return "google";
-    return "anthropic";
-  };
-
+  // Using the shared model → provider mapping helper
   const currentProvider = getProviderForModel(settings.selectedModel);
   const hasApiKeyForCurrentModel = Boolean(settings.apiKeys[currentProvider]);
 

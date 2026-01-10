@@ -99,8 +99,8 @@ export function CollapsibleGroup({
       {React.Children.map(children, (child, index) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child as React.ReactElement<CollapsibleProps>, {
-            defaultOpen: openIndex === index,
-            // Override the internal state to make it controlled
+            defaultOpen: _openIndex === index,
+            // Note: For full accordion behavior, we'd wire onClick to _setOpenIndex
           });
         }
         return child;

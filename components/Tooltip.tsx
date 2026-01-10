@@ -22,7 +22,8 @@ export function Tooltip({ content, children, position = 'top', delay = 200 }: To
     timeoutRef.current = setTimeout(() => {
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
-        setCoords({
+        // Calculate coords for potential future absolute positioning
+        _setCoords({
           x: rect.left + rect.width / 2,
           y: position === 'bottom' ? rect.bottom : rect.top,
         });

@@ -4,10 +4,10 @@
 
 import crypto from "crypto";
 import Database from "better-sqlite3";
-import fs from "fs";
 import path from "path";
 import type { TranslatedLine } from "@/lib/types";
-import { CACHE_MAX_ENTRIES, CACHE_TTL_MS, SQLITE_BUSY_TIMEOUT_MS } from "@/lib/constants";
+import { CACHE_MAX_ENTRIES, CACHE_TTL_MS } from "@/lib/constants";
+import { configureSqlitePragmas, ensureSqliteDirectory } from "@/lib/sqlite";
 
 // ===== DATABASE SETUP =====
 
@@ -17,18 +17,12 @@ function resolveDbPath(): string {
     return process.env.CACHE_DB_PATH || DEFAULT_DB_PATH;
 }
 
-function getBusyTimeoutMs(): number {
-    const raw = process.env.SQLITE_BUSY_TIMEOUT_MS;
-    if (!raw) return SQLITE_BUSY_TIMEOUT_MS;
-
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed)) return SQLITE_BUSY_TIMEOUT_MS;
-
-    return Math.max(0, Math.floor(parsed));
-}
-
 // Cache TTL: 24 hours by default
 const DEFAULT_TTL_MS = CACHE_TTL_MS;
+
+// We intentionally do NOT persist raw user code in SQLite.
+// This reduces the risk of sensitive data being stored on disk.
+const REDACTED_CODE_PLACEHOLDER = "[redacted]";
 
 let dbInstance: Database.Database | null = null;
 
@@ -105,12 +99,10 @@ function getDb(): Database.Database {
     if (dbInstance) return dbInstance;
 
     const dbPath = resolveDbPath();
-    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+    ensureSqliteDirectory(dbPath);
 
     const db = new Database(dbPath);
-    db.pragma("journal_mode = WAL");
-    db.pragma("synchronous = NORMAL");
-    db.pragma(`busy_timeout = ${getBusyTimeoutMs()}`);
+    configureSqlitePragmas(db);
 
     db.exec(`
     CREATE TABLE IF NOT EXISTS translation_cache (
@@ -245,15 +237,16 @@ export function setCachedTranslation(options: {
     INSERT OR REPLACE INTO translation_cache 
     (hash, code, language, model, translations, created_at, expires_at, hit_count)
     VALUES (?, ?, ?, ?, ?, ?, ?, 0)
-  `).run(
+    `).run(
         hash,
-        options.code,
+        REDACTED_CODE_PLACEHOLDER,
         options.language,
         options.model,
         JSON.stringify(options.translations),
         now,
         expiresAt
     );
+
 
     setMemoryEntry(hash, {
         translations: options.translations,

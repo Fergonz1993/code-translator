@@ -2,11 +2,10 @@
 // Server-side credits storage using SQLite for durability and idempotency.
 
 import crypto from "crypto";
-import fs from "fs";
 import path from "path";
 import Database from "better-sqlite3";
 import { CreditsState, INITIAL_CREDITS } from "@/lib/types";
-import { SQLITE_BUSY_TIMEOUT_MS } from "@/lib/constants";
+import { configureSqlitePragmas, ensureSqliteDirectory } from "@/lib/sqlite";
 
 // ===== DATABASE SETUP =====
 
@@ -16,29 +15,16 @@ function resolveDbPath(): string {
   return process.env.CREDITS_DB_PATH || DEFAULT_DB_PATH;
 }
 
-function getBusyTimeoutMs(): number {
-  const raw = process.env.SQLITE_BUSY_TIMEOUT_MS;
-  if (!raw) return SQLITE_BUSY_TIMEOUT_MS;
-
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return SQLITE_BUSY_TIMEOUT_MS;
-
-  return Math.max(0, Math.floor(parsed));
-}
-
 let dbInstance: Database.Database | null = null;
 
 function getDb(): Database.Database {
   if (dbInstance) return dbInstance;
 
-  // Ensure the data directory exists
   const dbPath = resolveDbPath();
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  ensureSqliteDirectory(dbPath);
 
   const db = new Database(dbPath);
-  db.pragma("journal_mode = WAL");
-  db.pragma("synchronous = NORMAL");
-  db.pragma(`busy_timeout = ${getBusyTimeoutMs()}`);
+  configureSqlitePragmas(db);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS credits_balance (

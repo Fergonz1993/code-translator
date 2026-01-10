@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
     // ===== STEP 2: Verify webhook signature =====
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.error("STRIPE_WEBHOOK_SECRET not configured");
       const response = NextResponse.json(
         { error: "Webhook not configured" },
         { status: 503 }
@@ -60,8 +59,7 @@ export async function POST(request: NextRequest) {
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+    } catch {
       const response = NextResponse.json(
         { error: "Invalid signature" },
         { status: 400 }
@@ -71,15 +69,19 @@ export async function POST(request: NextRequest) {
     }
 
     // ===== STEP 3: Handle the event =====
+    // Avoid logging sensitive Stripe IDs (session/payment_intent IDs).
     const eventType = event.type;
+    let outcome: string = "ignored";
+    let creditsGranted: number | null = null;
+    let paymentStatus: string | null = null;
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        paymentStatus = session.payment_status;
 
         if (session.payment_status !== "paid") {
-          console.log(
-            `Session ${session.id} not paid yet (status: ${session.payment_status})`
-          );
+          outcome = "checkout_not_paid";
           break;
         }
 
@@ -87,12 +89,12 @@ export async function POST(request: NextRequest) {
         const sessionId = session.metadata?.sessionId;
 
         if (!sessionId) {
-          console.error(`No sessionId found in metadata for session ${session.id}`);
+          outcome = "missing_session_id";
           break;
         }
 
         if (!credits || credits <= 0) {
-          console.error(`No credits found in metadata for session ${session.id}`);
+          outcome = "missing_credits";
           break;
         }
 
@@ -103,32 +105,39 @@ export async function POST(request: NextRequest) {
           idempotencyKey: `stripe:${session.id}`,
         });
 
-        console.log(
-          `Payment verified: ${credits} credits granted for session ${session.id}`
-        );
+        outcome = "credits_granted";
+        creditsGranted = credits;
         break;
       }
 
       case "payment_intent.payment_failed": {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        console.error(`Payment failed: ${paymentIntent.id}`);
+        outcome = "payment_failed";
         break;
       }
 
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
+      default: {
+        outcome = "unhandled_event";
+      }
     }
 
     const response = NextResponse.json({ received: true });
-    logApi({ status: response.status, meta: { eventType } });
+    logApi({
+      status: response.status,
+      meta: {
+        eventType,
+        outcome,
+        creditsGranted,
+        paymentStatus,
+      },
+    });
     return response;
   } catch (error) {
-    console.error("Webhook error:", error);
+    const errorName = error instanceof Error ? error.name : "unknown";
     const response = NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 }
     );
-    logApi({ status: response.status, error: "Webhook handler failed" });
+    logApi({ status: response.status, error: "Webhook handler failed", meta: { errorName } });
     return response;
   }
 }

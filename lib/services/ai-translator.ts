@@ -5,7 +5,11 @@
 import OpenAI from "openai";
 import { GoogleGenerativeAI, SchemaType, type Schema } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AIModel, AIProvider } from "@/lib/types";
+import {
+  getProviderForModel as getProviderForModelFromTypes,
+  type AIModel,
+  type AIProvider,
+} from "@/lib/types";
 import { REQUEST_TIMEOUT_MS } from "@/lib/constants";
 import { isRetryableError, withRetry } from "@/lib/services/retry";
 
@@ -49,9 +53,7 @@ const GEMINI_JSON_SCHEMA: Schema = {
 // ===== HELPERS =====
 
 export function getProviderForModel(model: AIModel): AIProvider {
-    if (model.startsWith("gpt")) return "openai";
-    if (model.startsWith("gemini")) return "google";
-    return "anthropic";
+    return getProviderForModelFromTypes(model);
 }
 
 export function getModelId(model: AIModel): string {

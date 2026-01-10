@@ -80,6 +80,18 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
   },
 ];
 
+// ===== MODEL HELPERS =====
+
+export function getProviderForModel(model: AIModel): AIProvider {
+  const match = AVAILABLE_MODELS.find((entry) => entry.id === model);
+  if (match) return match.provider;
+
+  // Defensive fallback: should be unreachable because AIModel is a strict union.
+  if (model.startsWith("gpt")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "anthropic";
+}
+
 // ===== PAYMENT MODE =====
 // How the user pays for translations
 

@@ -35,45 +35,14 @@ import type { AIModel, TranslatedLine } from "@/lib/types";
 import { detectLanguage } from "@/lib/language-detection";
 
 // ===== CONSTANTS =====
-const REQUEST_TIMEOUT_MS = 30000; // 30 seconds timeout for API requests
-const CACHE_MAX_ENTRIES = 1000;
-const UNTRANSLATED_PLACEHOLDER = "Not translated yet";
-
-// ===== SAMPLE CODE =====
-// Shows when the app first loads so users understand what it does
-const SAMPLE_CODE = `function calculatePAR30(loans: Loan[]) {
-  const delinquent = loans.filter(loan => loan.dpd > 30);
-  const ratio = delinquent.length / loans.length;
-  return ratio * 100;
-}`;
-
-const SAMPLE_TRANSLATIONS: TranslatedLine[] = [
-  {
-    lineNumber: 1,
-    line: "function calculatePAR30(loans: Loan[]) {",
-    english: "Define a function to calculate the PAR30 ratio for loans.",
-  },
-  {
-    lineNumber: 2,
-    line: "  const delinquent = loans.filter(loan => loan.dpd > 30);",
-    english: "Filter loans to keep those over 30 days past due.",
-  },
-  {
-    lineNumber: 3,
-    line: "  const ratio = delinquent.length / loans.length;",
-    english: "Compute the fraction of delinquent loans out of all loans.",
-  },
-  {
-    lineNumber: 4,
-    line: "  return ratio * 100;",
-    english: "Return the ratio as a percentage.",
-  },
-  {
-    lineNumber: 5,
-    line: "}",
-    english: "End the function.",
-  },
-];
+// Importing from centralized constants to avoid magic numbers
+import {
+  REQUEST_TIMEOUT_MS,
+  CACHE_MAX_ENTRIES,
+  UNTRANSLATED_PLACEHOLDER,
+  SAMPLE_CODE,
+  SAMPLE_TRANSLATIONS,
+} from "@/lib/constants";
 
 // ===== CACHE HELPERS =====
 function buildCacheKey(line: string, language: Language, model: AIModel): string {
