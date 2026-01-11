@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke": "bun scripts/smoke.ts"
+    "smoke": "bun scripts/smoke.ts",
+    "oss:scan": "bun scripts/oss-scan.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

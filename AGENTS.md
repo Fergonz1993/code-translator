@@ -139,6 +139,13 @@ Note: product backlog/roadmap should live in GitHub issues; this file is workflo
   - `bun run smoke` (+ env)
   See `.github/workflows/ci.yml`.
 
+## OSS scouting (GitHub)
+- Purpose: before building common infra from scratch, scan maintained OSS repos/patterns.
+- Update queries in `oss-scan.config.json`.
+- Run locally: `bun run oss:scan` (writes `docs/OSS_RADAR.md`).
+- License hygiene: prefer permissive (MIT/Apache-2.0/BSD); avoid copying large code blocks.
+- If the environment has no network access, ask the user to run the scan and paste `docs/OSS_RADAR.md`.
+
 ## Cursor / Copilot rules
 - No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` found in this repo.
 

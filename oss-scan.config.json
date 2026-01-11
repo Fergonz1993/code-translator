@@ -1,0 +1,31 @@
+{
+  "perPage": 10,
+  "out": "docs/OSS_RADAR.md",
+  "queries": [
+    {
+      "name": "Next.js Security Headers / CSP Nonce",
+      "q": "nextjs content-security-policy csp language:TypeScript stars:>50 pushed:>2023-01-01 archived:false",
+      "sort": "stars"
+    },
+    {
+      "name": "Stripe Webhooks (signature + idempotency)",
+      "q": "stripe webhook signature language:TypeScript stars:>100 pushed:>2023-01-01 archived:false",
+      "sort": "stars"
+    },
+    {
+      "name": "Rate Limiting (Node/TypeScript)",
+      "q": "rate limit middleware language:TypeScript stars:>200 pushed:>2023-01-01 archived:false",
+      "sort": "stars"
+    },
+    {
+      "name": "SQLite Cache / LRU Patterns",
+      "q": "sqlite cache language:TypeScript stars:>50 pushed:>2023-01-01 archived:false",
+      "sort": "stars"
+    },
+    {
+      "name": "Monaco Editor Integrations",
+      "q": "monaco editor react language:TypeScript stars:>500 pushed:>2023-01-01 archived:false",
+      "sort": "stars"
+    }
+  ]
+}

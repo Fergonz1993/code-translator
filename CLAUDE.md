@@ -20,6 +20,7 @@ bun install          # Install dependencies
 bun run dev          # Start dev server (localhost:3000)
 bun run build        # Production build
 bun run lint         # Run ESLint
+bun run oss:scan     # Update docs/OSS_RADAR.md (OSS radar)
 ```
 
 ## Architecture
