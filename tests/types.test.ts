@@ -6,6 +6,7 @@ import {
   AVAILABLE_MODELS,
   DEFAULT_SETTINGS,
   INITIAL_CREDITS,
+  getProviderForModel,
 } from "@/lib/types";
 
 describe("AVAILABLE_MODELS", () => {
@@ -68,5 +69,19 @@ describe("DEFAULT_SETTINGS", () => {
 describe("INITIAL_CREDITS", () => {
   it("should give new users 20 free credits", () => {
     expect(INITIAL_CREDITS).toBe(20);
+  });
+});
+
+describe("getProviderForModel", () => {
+  it("returns the provider for known models", () => {
+    expect(getProviderForModel("gpt-4o-mini")).toBe("openai");
+    expect(getProviderForModel("gemini-2.0-flash")).toBe("google");
+    expect(getProviderForModel("claude-haiku")).toBe("anthropic");
+  });
+
+  it("falls back based on model prefix for unknown IDs", () => {
+    expect(getProviderForModel("gpt-unknown" as any)).toBe("openai");
+    expect(getProviderForModel("gemini-unknown" as any)).toBe("google");
+    expect(getProviderForModel("something-else" as any)).toBe("anthropic");
   });
 });

@@ -45,7 +45,77 @@ describe("response-parser", () => {
     );
   });
 
+  it("throws a clear error for invalid JSON without brackets", () => {
+    const content = "not json";
+    expect(() => parseTranslationResponse(content, [1], ["const x = 1;"])).toThrow(
+      "AI returned invalid JSON. Please try again."
+    );
+  });
+
+  it("throws a clear error when JSON is not an array", () => {
+    const content = JSON.stringify({ lineNumber: 1, english: "x" });
+    expect(() => parseTranslationResponse(content, [1], ["const x = 1;"])).toThrow(
+      "AI response is not an array. Please try again."
+    );
+  });
+
+  it("parses lineNumber when it is a string", () => {
+    const content = '[{"lineNumber":"1","english":"Explain line 1"}]';
+    const result = parseTranslationResponse(content, [1], ["const x = 1;"]);
+    expect(result.get(1)).toBe("Explain line 1");
+  });
+
+  it("ignores non-object items", () => {
+    const content = JSON.stringify([
+      123,
+      null,
+      { lineNumber: 1, english: "ok" },
+    ]);
+
+    const result = parseTranslationResponse(content, [1], ["x"]); 
+    expect(result.get(1)).toBe("ok");
+  });
+
+  it("does not assign fallback translations for already-fulfilled lines", () => {
+    const lines = ["same()"];
+
+    // Duplicate expected line numbers create multiple fallback candidates for the same line.
+    const expectedLineNumbers = [1, 1];
+
+    const content = JSON.stringify([
+      { line: "same()", english: "First" },
+      { line: "same()", english: "Second" },
+    ]);
+
+    const result = parseTranslationResponse(content, expectedLineNumbers, lines);
+    expect(result.size).toBe(1);
+    expect(result.get(1)).toBe("First");
+  });
+
+  it("supports expected line numbers beyond the provided lines", () => {
+    const content = '[{"lineNumber":2,"english":"Explain line 2"}]';
+    const result = parseTranslationResponse(content, [2], ["only line 1"]);
+    expect(result.get(2)).toBe("Explain line 2");
+  });
+
+  it("uses line fallback when lineNumber is a non-numeric string", () => {
+    const content = JSON.stringify([
+      { lineNumber: "abc", line: "foo()", english: "Call foo." },
+    ]);
+
+    const result = parseTranslationResponse(content, [1], ["foo()"]);
+    expect(result.get(1)).toBe("Call foo.");
+  });
+
+  it("ignores fallback items when the line does not match any candidate", () => {
+    const content = JSON.stringify([{ line: "nope()", english: "Ignore" }]);
+
+    const result = parseTranslationResponse(content, [1], ["foo()"]);
+    expect(result.size).toBe(0);
+  });
+
   it("ignores items without an english string", () => {
+
     const content = '[{"lineNumber":1,"line":"const x = 1;"}]';
     const result = parseTranslationResponse(content, [1], ["const x = 1;"]);
     expect(result.size).toBe(0);

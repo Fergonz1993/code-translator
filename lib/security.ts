@@ -70,11 +70,6 @@ export function validateOrigin(request: NextRequest): {
         }
     }
 
-    // Allow requests without origin in development (e.g., Postman, curl)
-    if (!origin && process.env.NODE_ENV !== "production") {
-        return { valid: true, origin: null };
-    }
-
     return {
         valid: false,
         origin,

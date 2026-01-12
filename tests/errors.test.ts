@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   toAppError,
+  AppError,
+  ValidationError,
+  InsufficientCreditsError,
+  AIProviderError,
+  StripeNotConfiguredError,
   ContextLengthExceededError,
   InvalidAPIKeyError,
   RateLimitError,
@@ -43,5 +48,54 @@ describe("toAppError", () => {
     const original = new RateLimitError();
     const error = toAppError(original);
     expect(error).toBe(original);
+  });
+
+  it("wraps unknown Error messages", () => {
+    const error = toAppError(new Error("Something else"));
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("UNKNOWN_ERROR");
+    expect(error.statusCode).toBe(500);
+  });
+
+  it("wraps non-Error values", () => {
+    const error = toAppError("nope");
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.code).toBe("UNKNOWN_ERROR");
+    expect(error.message).toBe("An unexpected error occurred");
+  });
+});
+
+describe("error classes", () => {
+  it("AppError sets defaults", () => {
+    const error = new AppError({ message: "x", code: "X" });
+    expect(error.code).toBe("X");
+    expect(error.statusCode).toBe(500);
+    expect(error.retryable).toBe(false);
+  });
+
+  it("ValidationError is a 400", () => {
+    const error = new ValidationError("bad");
+    expect(error.code).toBe("VALIDATION_ERROR");
+    expect(error.statusCode).toBe(400);
+  });
+
+  it("InsufficientCreditsError is a 402", () => {
+    const error = new InsufficientCreditsError();
+    expect(error.code).toBe("INSUFFICIENT_CREDITS");
+    expect(error.statusCode).toBe(402);
+  });
+
+  it("AIProviderError defaults to retryable", () => {
+    const error = new AIProviderError({ message: "provider down", provider: "openai" });
+    expect(error.code).toBe("AI_PROVIDER_ERROR");
+    expect(error.statusCode).toBe(502);
+    expect(error.retryable).toBe(true);
+    expect(error.provider).toBe("openai");
+  });
+
+  it("StripeNotConfiguredError is a 503", () => {
+    const error = new StripeNotConfiguredError();
+    expect(error.code).toBe("STRIPE_NOT_CONFIGURED");
+    expect(error.statusCode).toBe(503);
   });
 });

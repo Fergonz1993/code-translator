@@ -25,6 +25,28 @@ describe("buildApiLog", () => {
       latencyMs: 42,
     });
   });
+
+  it("includes meta when provided", () => {
+    const entry = buildApiLog({
+      event: "api",
+      route: "/api/test",
+      method: "GET",
+      status: 200,
+      requestId: "req-1",
+      latencyMs: 42,
+      meta: { feature: "coverage" },
+    });
+
+    expect(entry).toEqual({
+      event: "api",
+      route: "/api/test",
+      method: "GET",
+      status: 200,
+      requestId: "req-1",
+      latencyMs: 42,
+      meta: { feature: "coverage" },
+    });
+  });
 });
 
 describe("logApiEvent", () => {

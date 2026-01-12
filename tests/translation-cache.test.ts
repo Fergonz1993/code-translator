@@ -214,6 +214,91 @@ describe("translation-cache", () => {
             expect(first!.hitCount).toBe(1);
             expect(second!.hitCount).toBe(2);
         });
+
+        it("should delete corrupt cache rows", () => {
+            closeDb();
+            cleanupTestDb();
+
+            const code = "const x = 1;";
+            const language = "typescript";
+            const model = "gpt-4o-mini";
+            const hash = generateCacheKey({ code, language, model });
+            const now = Date.now();
+
+            const db = new Database(TEST_CACHE_PATH);
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS translation_cache (
+                    hash TEXT PRIMARY KEY,
+                    code TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    translations TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL,
+                    hit_count INTEGER DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_expires_at ON translation_cache(expires_at);
+            `);
+
+            db.prepare(
+                `
+                INSERT OR REPLACE INTO translation_cache
+                (hash, code, language, model, translations, created_at, expires_at, hit_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                `
+            ).run(hash, "[redacted]", language, model, "not-json", now, now + 60_000);
+            db.close();
+
+            const cached = getCachedTranslation({ code, language, model });
+            expect(cached).toBeNull();
+
+            closeDb();
+            const checkDb = new Database(TEST_CACHE_PATH);
+            const row = checkDb
+                .prepare("SELECT hash FROM translation_cache WHERE hash = ?")
+                .get(hash) as { hash: string } | undefined;
+            checkDb.close();
+
+            expect(row).toBeUndefined();
+        });
+
+        it("cleanExpiredCache removes expired rows", () => {
+            closeDb();
+            cleanupTestDb();
+
+            const code = "expired";
+            const language = "ts";
+            const model = "gpt-4o-mini";
+            const hash = generateCacheKey({ code, language, model });
+            const now = Date.now();
+
+            const db = new Database(TEST_CACHE_PATH);
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS translation_cache (
+                    hash TEXT PRIMARY KEY,
+                    code TEXT NOT NULL,
+                    language TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    translations TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL,
+                    hit_count INTEGER DEFAULT 0
+                );
+                CREATE INDEX IF NOT EXISTS idx_expires_at ON translation_cache(expires_at);
+            `);
+
+            db.prepare(
+                `
+                INSERT OR REPLACE INTO translation_cache
+                (hash, code, language, model, translations, created_at, expires_at, hit_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                `
+            ).run(hash, "[redacted]", language, model, JSON.stringify(sampleTranslations), now, now - 1);
+            db.close();
+
+            const deleted = cleanExpiredCache();
+            expect(deleted).toBe(1);
+        });
     });
 
     describe("getCacheStats", () => {
@@ -260,6 +345,98 @@ describe("translation-cache", () => {
     });
 
     describe("memory LRU cache", () => {
+        it("disables memory caching when limit is 0", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "0";
+
+            try {
+                setCachedTranslation({
+                    code: "code-no-memory",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                });
+
+                expect(getMemoryCacheStats()).toEqual({ entries: 0, keys: [] });
+
+                const cached = getCachedTranslation({
+                    code: "code-no-memory",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                });
+
+                expect(cached).not.toBeNull();
+                expect(getMemoryCacheStats()).toEqual({ entries: 0, keys: [] });
+            } finally {
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
+        it("treats non-numeric limits as default", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "not-a-number";
+
+            try {
+                setCachedTranslation({
+                    code: "code-default-1",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                });
+                setCachedTranslation({
+                    code: "code-default-2",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                });
+
+                expect(getMemoryCacheStats().entries).toBe(2);
+            } finally {
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
+        it("does not evict non-expired memory entries during cleanExpiredCache", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "10";
+
+            const nowSpy = vi.spyOn(Date, "now");
+
+            try {
+                nowSpy.mockReturnValue(0);
+
+                setCachedTranslation({
+                    code: "code-not-expired",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                    ttlMs: 1000,
+                });
+
+                expect(getMemoryCacheStats().entries).toBe(1);
+
+                cleanExpiredCache();
+
+                expect(getMemoryCacheStats().entries).toBe(1);
+            } finally {
+                nowSpy.mockRestore();
+
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
         it("should evict least recently used entries when over limit", () => {
             const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
             process.env.CACHE_LRU_MAX_ENTRIES = "1";
@@ -303,6 +480,122 @@ describe("translation-cache", () => {
                 expect(afterAccess.entries).toBe(1);
                 expect(afterAccess.keys).toEqual([firstKey]);
             } finally {
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
+        it("handles missing oldest key in LRU enforcement", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "1";
+
+            const keysSpy = vi.spyOn(Map.prototype, "keys").mockImplementation(() => {
+                return {
+                    next: () => ({ value: undefined, done: true }),
+                    [Symbol.iterator]() {
+                        return this;
+                    },
+                } as any;
+            });
+
+            try {
+                setCachedTranslation({
+                    code: "code-missing-oldest-1",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                });
+                setCachedTranslation({
+                    code: "code-missing-oldest-2",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                });
+
+                // With a limit of 1, normal behavior would evict to 1 entry.
+                // Our mocked Map iterator simulates an unexpected missing key.
+                expect(getMemoryCacheStats().entries).toBe(2);
+            } finally {
+                keysSpy.mockRestore();
+
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
+        it("drops expired entries from memory on access", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "10";
+
+            const nowSpy = vi.spyOn(Date, "now");
+
+            try {
+                nowSpy.mockReturnValue(0);
+
+                setCachedTranslation({
+                    code: "code-expire",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                    ttlMs: 1,
+                });
+
+                // Cache is present in memory immediately.
+                expect(getMemoryCacheStats().entries).toBeGreaterThan(0);
+
+                // After expiry, memory entry should be evicted.
+                nowSpy.mockReturnValue(10);
+                const cached = getCachedTranslation({
+                    code: "code-expire",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                });
+
+                expect(cached).toBeNull();
+                expect(getMemoryCacheStats().entries).toBe(0);
+            } finally {
+                nowSpy.mockRestore();
+
+                if (originalLimit === undefined) {
+                    delete process.env.CACHE_LRU_MAX_ENTRIES;
+                } else {
+                    process.env.CACHE_LRU_MAX_ENTRIES = originalLimit;
+                }
+            }
+        });
+
+        it("evicts expired memory entries during cleanExpiredCache", () => {
+            const originalLimit = process.env.CACHE_LRU_MAX_ENTRIES;
+            process.env.CACHE_LRU_MAX_ENTRIES = "10";
+
+            const nowSpy = vi.spyOn(Date, "now");
+
+            try {
+                nowSpy.mockReturnValue(0);
+
+                setCachedTranslation({
+                    code: "code-expire-clean",
+                    language: "ts",
+                    model: "gpt-4o-mini",
+                    translations: sampleTranslations,
+                    ttlMs: 1,
+                });
+
+                expect(getMemoryCacheStats().entries).toBeGreaterThan(0);
+
+                nowSpy.mockReturnValue(10);
+                cleanExpiredCache();
+
+                expect(getMemoryCacheStats().entries).toBe(0);
+            } finally {
+                nowSpy.mockRestore();
+
                 if (originalLimit === undefined) {
                     delete process.env.CACHE_LRU_MAX_ENTRIES;
                 } else {

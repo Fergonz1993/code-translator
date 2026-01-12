@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     claimRequestSchema,
     checkoutRequestSchema,
+    parseRequest,
     translateRequestSchema,
 } from "@/lib/schemas";
 
@@ -93,5 +94,27 @@ describe("claimRequestSchema", () => {
     it("accepts a non-empty checkoutSessionId", () => {
         const result = claimRequestSchema.safeParse({ checkoutSessionId: "cs_test_123" });
         expect(result.success).toBe(true);
+    });
+});
+
+describe("parseRequest", () => {
+    it("formats root-level validation errors", () => {
+        const result = parseRequest(checkoutRequestSchema, null);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toContain("root:");
+        }
+    });
+
+    it("falls back to a generic message when issues are empty", () => {
+        const schema = {
+            safeParse: () => ({ success: false, error: { issues: [] } }),
+        } as any;
+
+        const result = parseRequest(schema, {});
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error).toBe("Invalid request");
+        }
     });
 });

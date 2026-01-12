@@ -14,6 +14,24 @@ describe("isRetryableError", () => {
   it("returns true for timeout messages", () => {
     expect(isRetryableError(new Error("Request timed out"))).toBe(true);
   });
+
+  it("returns true for rate limit messages", () => {
+    expect(isRetryableError(new Error("429"))).toBe(true);
+    expect(isRetryableError(new Error("rate limit"))).toBe(true);
+  });
+
+  it("returns true for overloaded/temporary messages", () => {
+    expect(isRetryableError(new Error("Service overloaded"))).toBe(true);
+    expect(isRetryableError(new Error("temporarily unavailable"))).toBe(true);
+  });
+
+  it("returns false for non-errors", () => {
+    expect(isRetryableError("nope")).toBe(false);
+  });
+
+  it("returns false for unrecognized error messages", () => {
+    expect(isRetryableError(new Error("something else"))).toBe(false);
+  });
 });
 
 describe("withRetry", () => {
