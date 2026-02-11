@@ -1,11 +1,5 @@
 # CLAUDE.md
 
-> [!IMPORTANT]
-> **🔄 ON EVERY NEW SESSION: Check `AGENT_STATE.md` FIRST!**
-> - If Mode is `RUNNING` or `PAUSED` → Resume immediately, no questions asked
-> - User can say: `resume`, `continue`, `go`, or `/turbo-loop` to trigger
-> - If user sends empty or unclear message, check AGENT_STATE.md anyway
-
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
