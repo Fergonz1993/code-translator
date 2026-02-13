@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> [!IMPORTANT]
+> **🔄 ON EVERY NEW SESSION: Check `AGENT_STATE.md` FIRST!**
+> - If Mode is `RUNNING` or `PAUSED` → Resume immediately, no questions asked
+
 ## Project Overview
 
 Code Translator is a Next.js 16 application that translates code into plain English, line by line. Think "Google Translate for programming." Users paste code on the left, and AI-generated explanations appear on the right in real-time.
