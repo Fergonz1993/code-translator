@@ -152,3 +152,21 @@ Note: product backlog/roadmap should live in GitHub issues; this file is workflo
 ## Optional: Codex skill resume (local dev)
 - If you use the endless feature loop tooling:
   - `python3 ~/.codex/skills/endless-feature-loop/scripts/resume_loop.py --repo /Users/fernandogonzalez/Code-and-development/CODE-TRANSLATOR-LIVE --set-current`
+
+
+## Codex 0.98.0 + GPT-5.2-Codex xhigh Baseline (2026-02-06)
+
+- Default model for local and ChatGPT-authenticated Codex sessions: `gpt-5.2-codex`.
+- Default reasoning effort: `xhigh`.
+- Enforce these defaults via `.codex/config.toml` in this project and `~/.codex/config.toml` globally.
+- Keep Codex CLI current: `npm i -g @openai/codex@latest` and verify with `codex --version`.
+- Prefer Responses-capable providers/models for agentic coding; Chat Completions support in Codex is deprecated.
+- Instruction layering:
+  - Put shared defaults in repository-root `AGENTS.md`.
+  - Put local exceptions in nearest `AGENTS.override.md`.
+- Execution mode defaults:
+  - Safer exploration: `--sandbox read-only --ask-for-approval on-request`.
+  - Day-to-day local coding: `--full-auto` (workspace-write + on-request).
+  - Unattended automation: `codex exec` with explicit `--sandbox` and `--ask-for-approval`.
+- If behavior is unclear, run: `codex --ask-for-approval never "Summarize active instruction files and precedence."`.
+- If any rule conflicts with this baseline, follow the more specific project/subdirectory rule.
